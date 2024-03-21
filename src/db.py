@@ -33,6 +33,23 @@ class DB:
         return Student(**student)
     
     @staticmethod
+    def _updateValues(current_data: dict, changes: dict):
+        for key, value in changes.items():
+            path = Student.getPathToField(key)
+            if path.find("/") == -1:
+                raise ValueError(f"Invalid criteria {key}")
+            path = path.split("/")
+            if len(path) == 0:
+                raise ValueError(f"Invalid criteria {key}")
+                
+            current_data_pointer = current_data
+            for step in path[:-1]:
+                current_data_pointer = current_data_pointer[step]
+            current_data_pointer[path[-1]] = value
+
+        return current_data
+    
+    @staticmethod
     def updateStudentByStudent(student: Student, changes: dict):
         # Получаем текущие данные о студенте
         old_hash = DB._getHash(student.surname, student.name, student.age, student.phoneNumber)
@@ -50,16 +67,6 @@ class DB:
         # Создаем новую запись в базе данных
         db.child("students").child(new_hash).update(newData)
         return new_hash
-    
-
-    def _updateValues(current_data: dict, changes: dict):
-        for key, value in changes.items():
-            if type(value) is dict:
-                for k, v in value.items():
-                    current_data[key][k] = v
-            else:
-                current_data[key] = value
-        return current_data
     
     @staticmethod
     def updateStudent(hash: str, changes: dict):

@@ -50,7 +50,7 @@ def test_update_student(test_students):
     hash = DB.writeStudent(test_student)
 
     # Обновление данных студента
-    changes = {'personal_info': {'name': 'UpdatedName'}, 'study_info': {'group': 'UpdatedGroup', 'course': 3}}
+    changes = {'name': 'UpdatedName', 'group': 'UpdatedGroup', 'course': 3}
     new_hash = DB.updateStudentByStudent(test_student, changes)
 
     # Проверка обновленных данных
