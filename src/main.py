@@ -32,7 +32,7 @@ class DB:
     def getStudentByHash(hash):
         student = db.child("students").child(hash).get().val()
         if student is None:
-            raise ValueError("Student not found")
+            return None
         return Student(**student)
     
     @staticmethod
@@ -91,10 +91,16 @@ class DB:
         print("All students deleted")
 
     @staticmethod
-    def deleteStudent(hash):
-        if type(hash) is Student:
-            hash = DB.getHashByStudent(hash)
-        db.child("students").child(hash).remove()
+    def deleteStudents(*args):
+        if all([type(arg) is Student for arg in args]):
+            args = [DB.getHashByStudent(arg) for arg in args]
+        elif all([type(arg) is str for arg in args]):
+            args = args
+        else:
+            raise ValueError("Invalid arguments")
+        
+        for arg in args:
+            db.child("students").child(arg).remove()
 
     @staticmethod
     def findByCriteria(criterias: dict):
@@ -119,8 +125,10 @@ def main():
     student = Student(personal_info={'name': 'Дмитрий', 'surname': 'Петров', 'age': 18, 'homeCity': 'Москва'}, 
                       contact_info={'address': 'ул Ленина, 1', 'phoneNumber': 1234567890}, 
                       study_info={'group': 'МИСИС', 'course': 1, 'pass_num': 1234, 'available_rooms': [1, 2, 3], 'ID': 1234567890, 'gradebookID': 1234567890})
-    # hash = DB.writeStudent(student)
-    DB.deleteStudent(student)
+    hash = DB.writeStudent(student)
+    student = DB.getStudentByHash(hash)
+    print(student)
+    # DB.deleteStudent(student)
 
 # def get_emeil_and_password(confirmation=False):
 #     email = input("Email: ")
