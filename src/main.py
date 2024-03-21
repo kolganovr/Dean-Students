@@ -1,7 +1,5 @@
 import pyrebase
 from cfg import firebaseConfig
-import time
-import sys
 
 from hashlib import shake_256
 
@@ -87,7 +85,16 @@ class DB:
     
     @staticmethod
     def deleteAllStudents():
+        if input("Are you sure you want to delete all students? (y/n): ") != "y":
+            return
         db.child("students").remove()
+        print("All students deleted")
+
+    @staticmethod
+    def deleteStudent(hash):
+        if type(hash) is Student:
+            hash = DB.getHashByStudent(hash)
+        db.child("students").child(hash).remove()
 
     @staticmethod
     def findByCriteria(criterias: dict):
@@ -109,13 +116,11 @@ class DB:
         
 
 def main():
-    student = Student(personal_info={'name': 'Николай', 'surname': 'Петров', 'age': 18, 'homeCity': 'Москва'}, 
+    student = Student(personal_info={'name': 'Дмитрий', 'surname': 'Петров', 'age': 18, 'homeCity': 'Москва'}, 
                       contact_info={'address': 'ул Ленина, 1', 'phoneNumber': 1234567890}, 
                       study_info={'group': 'МИСИС', 'course': 1, 'pass_num': 1234, 'available_rooms': [1, 2, 3], 'ID': 1234567890, 'gradebookID': 1234567890})
-    hash = DB.writeStudent(student)
-    # print(*DB.findByCriteria({"homeCity": "Москва", "course": 2}))
-
-    DB.updateStudent(hash, {'study_info': {'available_rooms': [1, 2, 3, 4]}})
+    # hash = DB.writeStudent(student)
+    DB.deleteStudent(student)
 
 # def get_emeil_and_password(confirmation=False):
 #     email = input("Email: ")
