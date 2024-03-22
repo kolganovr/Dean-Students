@@ -10,6 +10,20 @@ db = firebase.database()
 class DB:
     @staticmethod
     def _getHash(*args):
+        """
+        Считает хеш-значение заданных аргументов, используя алгоритм SHAKE-256.
+
+        Параметры:
+            *args (Any): Аргументы для хеширования.
+
+        Возвращает:
+            str: Хеш-значение аргументов
+
+        Пример:
+            >>> hash = DB._getHash("Roman", 20)
+            >>> print(hash)
+            ed9dc20e31dbc1db
+        """
         hash = shake_256()
         for arg in args:
             hash.update(str(arg).encode())
@@ -17,16 +31,63 @@ class DB:
     
     @staticmethod
     def getHashByStudent(student: Student):
+        """
+        Считает хеш-значение студента для использования как ключ, используя алгоритм SHAKE-256.
+
+        Параметры:
+            student (Student): Студент
+
+        Возвращает:
+            str: Хеш-значение студента
+
+        Пример:
+            >>> student = Student(...)
+            >>> hash = DB.getHashByStudent(student)
+            >>> print(hash)
+            ed9dc20e31dbc1db
+
+        Дополнительные сведения:
+            Хеширует имя, фамилию, возраст и номер телефона
+        """
         return DB._getHash(student.surname, student.name, student.age, student.phoneNumber)
     
     @staticmethod
     def writeStudent(student):
+        """
+        Добавляет студента в базу данных.
+
+        Параметры:
+            student (Student): Студент
+
+        Возвращает:
+            str: Хеш-значение студента
+
+        Пример:
+            >>> student = Student(...)
+            >>> hash = DB.writeStudent(student)
+            >>> print(hash)
+            ed9dc20e31dbc1db
+        """
         hash = DB.getHashByStudent(student)
         db.child("students").child(hash).set(student.__dict__())
         return hash
 
     @staticmethod
     def getStudentByHash(hash):
+        """
+        Возвращает студента по его хешу.
+
+        Параметры:
+            hash (str): Хеш-значение студента
+
+        Возвращает:
+            Student: Студент
+
+        Пример:
+            >>> student = DB.getStudentByHash("ed9dc20e31dbc1db")
+            >>> print(student)
+            [Информация о студенте из метода Student.__str__()]
+        """
         student = db.child("students").child(hash).get().val()
         if student is None:
             return None
@@ -34,6 +95,31 @@ class DB:
     
     @staticmethod
     def _updateValues(current_data: dict, changes: dict):
+        """
+        Служебная функция для обновления значений в словаре студента.
+
+        Параметры:
+            current_data (dict): Словарь текущих данных о студенте
+            changes (dict): Изменения, которые нужно внести (словь ключ-значение тех полей, которые нужно обновить)
+
+        Возвращает:
+            dict: Обновленные данные о студенте
+
+        Пример:
+            >>> current_data = {
+                ...
+                'personal_info':{'age': 18, ...}
+                ...
+            }
+            >>> changes = {"age": 21}
+            >>> new_data = DB._updateValues(current_data, changes)
+            >>> print(new_data)
+            {
+                ...
+                'personal_info':{'age': 21, ...}
+                ...
+            }
+        """
         for key, value in changes.items():
             path = Student.getPathToField(key)
             if path.find("/") == -1:
@@ -50,27 +136,31 @@ class DB:
         return current_data
     
     @staticmethod
-    def updateStudentByStudent(student: Student, changes: dict):
-        # Получаем текущие данные о студенте
-        old_hash = DB._getHash(student.surname, student.name, student.age, student.phoneNumber)
-        current_data = DB.getStudentByHash(old_hash)
-        
-        # Генерируем новый хеш
-        new_hash = DB._getHash(current_data.surname, current_data.name, current_data.age, current_data.phoneNumber)
+    def updateStudent(student, changes: dict):
+        """
+        Обновляет данные о студенте по студенту и его хешу.
 
-        current_data = current_data.__dict__()
-        # Обновляем данные
-        newData = DB._updateValues(current_data, changes)
+        Параметры:
+            student (Student or str): Студент или его хеш
+            changes (dict): Изменения, которые нужно внести (словь ключ-значение тех полей, которые нужно обновить)
 
-        print(changes, current_data, sep="\n\n")
+        Возвращает:
+            str: Новое хеш-значение студента
 
-        # Создаем новую запись в базе данных
-        db.child("students").child(new_hash).update(newData)
-        return new_hash
-    
-    @staticmethod
-    def updateStudent(hash: str, changes: dict):
-    # ! Добавить проыверку на правильность ключей
+        Пример:
+            >>> changes = {"age": 21}
+            >>> hash = DB.updateStudent("ed9dc20e31dbc1db", changes)
+            >>> print(hash)
+            fe9dc20e31dbc1db
+
+        Дополнительные сведения:
+            Хеш поменялся тк было изменено поле отвечающее за генерацию хеша (см. метод _getHashByStudent)
+        """
+        if type(student) is Student:
+            hash = DB._getHash(student.surname, student.name, student.age, student.phoneNumber)
+        else:
+            hash = student
+
         # Получаем текущие данные о студенте
         current_data = DB.getStudentByHash(hash).__dict__()
 
@@ -78,15 +168,19 @@ class DB:
         newData = DB._updateValues(current_data, changes)
         
         # Генерируем новый хеш
-        new_hash = DB._getHash(current_data)
-
-        # Создаем новую запись в базе данных
+        # TODO: Проверка на то, нужно ли генерировать новый хеш
+        
+        new_hash = DB._getHash(newData['personal_info']['surname'], newData['personal_info']['name'], 
+                                   newData['personal_info']['age'], newData['contact_info']['phoneNumber'])
+            
+        # Обновляем данные о студенте
         db.child("students").child(new_hash).update(newData)
 
-        # Удаляем старую запись
-        db.child("students").child(hash).remove()
+        # Удаляем старого студента
+        DB.deleteStudents(hash)
+
         return new_hash
-    
+
     @staticmethod
     def deleteAllStudents():
         if input("Are you sure you want to delete all students? (y/n): ") != "y":
