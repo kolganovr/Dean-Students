@@ -1,11 +1,8 @@
-import pyrebase
+from firebase import db
 from cfg import firebaseConfig
+
 from student import Student
 from hashlib import shake_256
-
-firebase = pyrebase.initialize_app(firebaseConfig)
-
-db = firebase.database()
 
 class DB:
     @staticmethod
