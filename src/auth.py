@@ -25,15 +25,19 @@ class Auth:
         return email, password
     
     @staticmethod
-    def delete_user():
+    def delete_user(email=None, password=None):
         """
         Удаляет пользователя запросив логин и пароль от аккаунта.
+
+        Параметры:
+            email (str) = None: Email пользователя
+            password (str) = None: Пароль пользователя
 
         Возвращает:
             bool: Удалён ли аккаунт
         """
-        user = Auth.login()
-        if input(f"Вы уверены, что хотите удалить аккаунт {user['email']}? (y/n): ") != "y":
+        user = Auth.login(email, password)
+        if input(f"Вы уверены, что хотите удалить аккаунт? (y/n): ") != "y":
             return False
         
         id_token = user['idToken']
@@ -46,15 +50,20 @@ class Auth:
             
     
     @staticmethod
-    def login():
+    def login(email=None, password=None):
         """
         Логинит пользователя запросив email и password.
+
+        Параметры:
+            email (str) = None: Email пользователя
+            password (str) = None: Пароль пользователя
 
         Возвращает:
             dict: Данные пользователя {'kind': '...', 'localId': '...', 'email': '...', 'displayName': '...', 
                                 'emailVerified': True, 'idToken': '...', 'registered': True, 'refreshToken': '...', 'expiresIn': '...'}
         """
-        email, password = Auth._get_emeil_and_password()
+        if email is None and password is None:
+            email, password = Auth._get_emeil_and_password()
         try:
             user = auth.sign_in_with_email_and_password(email, password)
         except Exception as e:
@@ -64,9 +73,14 @@ class Auth:
         return user
 
     @staticmethod
-    def register():
+    def register(email=None, password=None, confirmed_password=None):
         """
         Регистрирует нового пользователя запросив email и password и подтверждение пароля.
+
+        Параметры:
+            email (str) = None: Email пользователя
+            password (str) = None: Пароль пользователя
+            confirmed_password (str) = None: Подтвержденный пароль
 
         Возвращает:
             dict: Данные пользователя {'kind': '...', 'localId': '...', 'email': '...', 'displayName': '...', 
@@ -74,7 +88,11 @@ class Auth:
 
         """
         # TODO: Сделать проверку на сложность пароля используя библиотеку passlib или re
-        email, password = Auth._get_emeil_and_password(True)
+        if email is None and password is None and confirmed_password is None:
+            email, password = Auth._get_emeil_and_password(True)
+        else:
+            if password != confirmed_password:
+                raise Exception("Пароли не совпадают!")
         try:
             user = auth.create_user_with_email_and_password(email, password)
         except Exception as e:
