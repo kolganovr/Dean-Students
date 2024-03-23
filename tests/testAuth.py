@@ -2,7 +2,6 @@ import sys
 import pytest
 from unittest.mock import patch
 
-
 sys.path.append('src')
 from auth import Auth
 from firebase import auth
