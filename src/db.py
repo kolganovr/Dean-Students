@@ -183,6 +183,15 @@ class DB:
 
     @staticmethod
     def deleteAllStudents():
+        """
+        Удаляет все записи о студентах из базы данных.
+
+        Пример:
+            >>> DB.deleteAllStudents()
+            Are you sure you want to delete all students? (y/n): y
+            All students deleted
+        """
+        
         if input("Are you sure you want to delete all students? (y/n): ") != "y":
             return
         db.child("students").remove()
@@ -190,6 +199,16 @@ class DB:
 
     @staticmethod
     def deleteStudents(*args):
+        """
+        Удаляет записи о студентах из базы данных.
+
+        Параметры:
+            *args (Student or str): Студенты или их хеши
+
+        Пример:
+            >>> DB.deleteStudents("ed9dc20e31dbc1db", "fe9dc20e31dbc1db")
+            >>> DB.deleteStudents(student1, student2)
+        """
         if all([type(arg) is Student for arg in args]):
             args = [DB.getHashByStudent(arg) for arg in args]
         elif all([type(arg) is str for arg in args]):
@@ -202,6 +221,20 @@ class DB:
 
     @staticmethod
     def findByCriteria(criterias: dict):
+        """
+        Поиск студентов по критериям.
+
+        Параметры:
+            criterias (dict): Критерии поиска (словь ключ-значение тех полей, по которым нужно искать)
+
+        Возвращает:
+            list: Список студентов, подходящих под все критерии
+
+        Пример:
+            >>> students = DB.findByCriteria({'surname': 'Петров', 'age': 18, 'homeCity': 'Москва'})
+            >>> print(students)
+            [Student(...), Student(...), ...]
+        """
         # Получаем список студентов подходящих под все критерии одновременно
         students = set()
         for key, value in criterias.items():
