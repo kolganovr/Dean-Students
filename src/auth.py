@@ -68,8 +68,9 @@ class Auth:
             user = auth.sign_in_with_email_and_password(email, password)
         except Exception as e:
             print(e)
-            return Auth.login()
+            return None
         
+        print("Вы успешно вошли!")
         return user
 
     @staticmethod
@@ -99,4 +100,15 @@ class Auth:
             print(e)
             return Auth.register()
         
+        print("Вы успешно зарегистрировались!")
         return user
+    
+    @staticmethod
+    def isAuth():
+        """
+        Проверяет, авторизирован ли пользователь.
+
+        Возвращает:
+            bool: Авторизирован ли пользователь
+        """
+        return auth.current_user is not None
