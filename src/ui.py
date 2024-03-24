@@ -2,6 +2,9 @@ import flet as ft
 from auth import Auth
 
 class UI:
+    """
+    Класс для работы со всем UI
+    """
     def __init__(self):
         ft.app(target=self.main)
 
@@ -39,7 +42,10 @@ class UI:
         page.update()
 
 
-class MainPage():
+class MainPage:
+    """
+    Класс для отображения главной страницы
+    """
     def __init__(self, ui: UI):
         self.ui = ui
         self.page = ui.page
@@ -66,8 +72,14 @@ class MainPage():
 
     
 
-class AuthPage():
+class AuthPage:
+    """
+    Класс для страницы входа в аккаунт и регистрации.
+    """
     class InfoCard:
+        """
+        Класс для отображения информационной карточки.
+        """
         def __init__(self, objs, page: ft.Page):
             self.objs = objs
             self.page = page
@@ -161,6 +173,9 @@ class AuthPage():
                 return self.InfoCard([self.emailField, self.passwordField, ft.Row([self.enterButton, self.registerButton])], page=self.page).build()
             
 class Dialog:
+    """
+    Класс для отображения диалоговых окон
+    """
     def __init__(self,page: ft.Page, title: str, content: str, backAction: ft.ElevatedButton, actions: list[ft.ElevatedButton] = []):
         self.page = page
         self.title = title

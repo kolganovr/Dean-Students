@@ -10,6 +10,9 @@ class Auth:
         
         Возвращает:
             tuple: email, password
+
+        Поднимает:
+            ValueError: Пароли не совпадают
         
         Пример:
             >>> email, password = Auth._get_emeil_and_password()
@@ -61,6 +64,9 @@ class Auth:
         Возвращает:
             dict: Данные пользователя {'kind': '...', 'localId': '...', 'email': '...', 'displayName': '...', 
                                 'emailVerified': True, 'idToken': '...', 'registered': True, 'refreshToken': '...', 'expiresIn': '...'}
+
+        Поднимает: 
+            ValueError: Неверные логин или пароль!
         """
         if email is None and password is None:
             email, password = Auth._get_emeil_and_password()
@@ -90,6 +96,10 @@ class Auth:
         Возвращает:
             dict: Данные пользователя {'kind': '...', 'localId': '...', 'email': '...', 'displayName': '...', 
                                 'emailVerified': True, 'idToken': '...', 'registered': True, 'refreshToken': '...', 'expiresIn': '...'}
+
+        Поднимает:
+            ValueError: Пароли не совпадают
+            ValueError: Пользователь с таким email уже существует!
 
         """
         # TODO: Сделать проверку на сложность пароля используя библиотеку passlib или re
