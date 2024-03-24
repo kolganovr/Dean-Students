@@ -47,57 +47,139 @@ class MainPage():
         self.title = ft.Text("Деканат-Студенты", size=50, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER)
 
     def build(self):
-        return ft.Column(
-            [self.title], 
-            alignment=ft.MainAxisAlignment.CENTER, 
-            height=self.page.window_height-self.page.navigation_bar.height,
-            width=self.page.window_width,
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER
-        )
+        if Auth.getUser() is not None:
+            return ft.Column(
+                [self.title], 
+                alignment=ft.MainAxisAlignment.CENTER, 
+                height=self.page.window_height-self.page.navigation_bar.height,
+                width=self.page.window_width,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER
+            )
+        else:
+            return ft.Column(
+                [ft.Text("Для просмотра информации необходимо войти в аккаунт", size=20, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER)], 
+                alignment=ft.MainAxisAlignment.CENTER, 
+                height=self.page.window_height-self.page.navigation_bar.height,
+                width=self.page.window_width,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER
+            )
+
     
 
 class AuthPage():
+    class InfoCard:
+        def __init__(self, objs, page: ft.Page):
+            self.objs = objs
+            self.page = page
+        
+        def build(self):
+            card = ft.Column(
+                [ft.ResponsiveRow(
+                    [ft.Card(
+                        ft.Container(   
+                            ft.Column(
+                                controls=self.objs,
+                                horizontal_alignment=ft.CrossAxisAlignment.CENTER
+                            ),
+                            padding=20,
+                        ),
+                        col={"sm": 12, "md": 8, "xl": 5},
+                    )],
+                    alignment=ft.MainAxisAlignment.CENTER
+                )],
+
+                height=self.page.window_height-self.page.navigation_bar.height,
+                width=self.page.window_width,
+                alignment=ft.MainAxisAlignment.CENTER
+            )
+            return card
+
+            
     def __init__(self, ui: UI):
         self.ui = ui
         self.page = ui.page
+        self.clickedRegister = False
+
+        def click_enterButton(e):
+            try:
+                Auth.login(self.emailField.value, self.passwordField.value)
+            except ValueError as err:
+                Dialog(self.page, "Ошибка входа", str(err), backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+                return
+            self.ui.changePage(0)
+            
+        def click_registerButton(e):
+            if not self.clickedRegister:
+                self.clickedRegister = True
+                self.page.controls = [self.build(register=True)]
+                self.page.update()
+            else:
+                try:
+                    Auth.register(self.emailField.value, self.passwordField.value, self.passwordFieldConfirm.value)
+                except ValueError as err:
+                    Dialog(self.page, "Ошибка регистрации", str(err), backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+                    return
+                
+                Auth.login(self.emailField.value, self.passwordField.value)
+                self.ui.changePage(0)
+
+        def backToEnter(e):
+            self.clickedRegister = False
+            self.passwordFieldConfirm.value = ""
+            self.page.controls = [self.build(register=False)]
+            self.page.update()
+            
+        def click_signOutButton(e):
+            Auth.signOut()
+            # Очистка полей ввода
+            self.emailField.value = ""
+            self.passwordField.value = ""
+            self.passwordFieldConfirm.value = ""
+            self.currentEmail.value = ""
+            self.clickedRegister = False
+            # Обновляем страницу
+            self.ui.changePage(1)
+
         self.emailField = ft.TextField(label="Email", multiline=False, hint_text="example@example.com")
         self.passwordField = ft.TextField(label="Пароль", password=True, can_reveal_password=True)
+        self.passwordFieldConfirm = ft.TextField(label="Подтверждение пароля", password=True, can_reveal_password=True)
+        self.enterButton = ft.ElevatedButton(text="Вход", on_click=click_enterButton)
+        self.registerButton = ft.ElevatedButton(text="Регистрация", on_click=click_registerButton)
+        self.backButton = ft.ElevatedButton(text="Назад", on_click=backToEnter)
 
-        def on_click(e):
-            user = Auth.login(self.emailField.value, self.passwordField.value)
-            print(user)
-            if user is not None:
-                # Переходим на главную страницу
-                self.ui.changePage(0)
+        self.currentEmail = ft.Text("", size=20, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER)
+        self.signOutButton = ft.ElevatedButton(text="Выход", on_click=click_signOutButton)
+
+    def build(self, register=False):
+        if Auth.getUser() is not None:
+            self.currentEmail.value = f"Вы вошли как: {Auth.getUser()['email']}"
+            return self.InfoCard([self.currentEmail, self.signOutButton], page=self.page).build()
+        else:
+            if register or self.clickedRegister:
+                return self.InfoCard([self.emailField, self.passwordField, self.passwordFieldConfirm, ft.Row([self.backButton, self.registerButton])], page=self.page).build()
             else:
-                print("Пользователь не найден")
+                return self.InfoCard([self.emailField, self.passwordField, ft.Row([self.enterButton, self.registerButton])], page=self.page).build()
+            
+class Dialog:
+    def __init__(self,page: ft.Page, title: str, content: str, backAction: ft.ElevatedButton, actions: list[ft.ElevatedButton] = []):
+        self.page = page
+        self.title = title
+        self.content = content
+        self.backAction = backAction
+        self.actions = actions
 
-        self.bt1 = ft.ElevatedButton(text="Вход", on_click=on_click)
-
+    def closeDialog(self, e):
+        self.page.dialog.open = False
+        self.page.update()
+    
     def build(self):
-        all = ft.Column(
-            [ft.ResponsiveRow(
-                [ft.Card(
-                    ft.Container(   
-                        ft.Column(
-                            [ft.ResponsiveRow(
-                                [self.emailField]
-                            ),
-                            ft.ResponsiveRow(
-                                [self.passwordField]
-                            ),
-                            ft.ResponsiveRow(
-                                [self.bt1]
-                            )]
-                        ),
-                        padding=20,
-                    ),
-                    col={"sm": 12, "md": 8, "xl": 5},
-                )],
-                alignment=ft.MainAxisAlignment.CENTER
-            )],
-            height=self.page.window_height-self.page.navigation_bar.height,
-            width=self.page.window_width,
-            alignment=ft.MainAxisAlignment.CENTER
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(self.title),
+            content=ft.Text(self.content),
+            actions=[self.backAction, *self.actions]
         )
-        return all
+        dialog.actions[0].on_click = self.closeDialog
+        self.page.dialog = dialog
+        dialog.open = True
+        self.page.update()

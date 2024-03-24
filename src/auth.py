@@ -67,10 +67,14 @@ class Auth:
         try:
             user = auth.sign_in_with_email_and_password(email, password)
         except Exception as e:
-            print(e)
+            if "INVALID_LOGIN_CREDENTIALS" in str(e):
+                raise ValueError("Неверные логин или пароль!")
+            else:
+                print(e)
             return None
         
         print("Вы успешно вошли!")
+        Auth.user = user
         return user
 
     @staticmethod
@@ -93,15 +97,31 @@ class Auth:
             email, password = Auth._get_emeil_and_password(True)
         else:
             if password != confirmed_password:
-                raise Exception("Пароли не совпадают!")
+                raise ValueError("Пароли не совпадают!")
         try:
             user = auth.create_user_with_email_and_password(email, password)
         except Exception as e:
-            print(e)
-            return Auth.register()
+            if "EMAIL_EXISTS" in str(e):
+                raise ValueError("Пользователь с таким email уже существует!")
+            else:
+                print(e)
+            return None
         
         print("Вы успешно зарегистрировались!")
         return user
+    
+    @staticmethod
+    def signOut():
+        """
+        Выходит из аккаунта.
+        """
+        try:
+            auth.current_user = None
+            return True
+        except Exception as e:
+            print(e)
+            return False
+
     
     @staticmethod
     def isAuth():
@@ -112,3 +132,14 @@ class Auth:
             bool: Авторизирован ли пользователь
         """
         return auth.current_user is not None
+    
+    @staticmethod
+    def getUser():
+        """
+        Возвращает данные пользователя.
+
+        Возвращает:
+            dict: Данные пользователя {'kind': '...', 'localId': '...', 'email': '...', 'displayName': '...', 
+                                'emailVerified': True, 'idToken': '...', 'registered': True, 'refreshToken': '...', 'expiresIn': '...'}
+        """
+        return auth.current_user
