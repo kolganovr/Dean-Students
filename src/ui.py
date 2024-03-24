@@ -6,6 +6,7 @@ class UI:
         ft.app(target=self.main)
 
     def changePage(self, pageNum: int):
+        self.page.navigation_bar.selected_index = pageNum
         if pageNum == 0:
             self.page.controls = [self.mainPage.build()]
             self.page.update()
@@ -20,9 +21,6 @@ class UI:
         page.window_height = 900
         page.window_width = 1600
 
-        def on_navBar_change(e):
-            self.changePage(e.control.selected_index)
-
         self.navBar = ft.NavigationBar(
             destinations=[
                 ft.NavigationDestination(
@@ -32,7 +30,7 @@ class UI:
                     label="Вход", icon=ft.icons.LOGIN_OUTLINED, selected_icon=ft.icons.LOGIN
                 )
             ],
-            on_change=on_navBar_change,
+            on_change=lambda e: self.changePage(e.control.selected_index),
             selected_index=1,
             height=80
         )
@@ -48,7 +46,6 @@ class MainPage():
         self.page.title = "Деканат-Студенты"
         self.title = ft.Text("Деканат-Студенты", size=50, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER)
 
-
     def build(self):
         return ft.Column(
             [self.title], 
@@ -63,8 +60,8 @@ class AuthPage():
     def __init__(self, ui: UI):
         self.ui = ui
         self.page = ui.page
-        self.emailField = ft.TextField(label="Email")
-        self.passwordField = ft.TextField(label="Пароль", password=True)
+        self.emailField = ft.TextField(label="Email", multiline=False, hint_text="example@example.com")
+        self.passwordField = ft.TextField(label="Пароль", password=True, can_reveal_password=True)
 
         def on_click(e):
             user = Auth.login(self.emailField.value, self.passwordField.value)
@@ -78,4 +75,29 @@ class AuthPage():
         self.bt1 = ft.ElevatedButton(text="Вход", on_click=on_click)
 
     def build(self):
-        return ft.Column([self.emailField, self.passwordField, self.bt1])
+        all = ft.Column(
+            [ft.ResponsiveRow(
+                [ft.Card(
+                    ft.Container(   
+                        ft.Column(
+                            [ft.ResponsiveRow(
+                                [self.emailField]
+                            ),
+                            ft.ResponsiveRow(
+                                [self.passwordField]
+                            ),
+                            ft.ResponsiveRow(
+                                [self.bt1]
+                            )]
+                        ),
+                        padding=20,
+                    ),
+                    col={"sm": 12, "md": 8, "xl": 5},
+                )],
+                alignment=ft.MainAxisAlignment.CENTER
+            )],
+            height=self.page.window_height-self.page.navigation_bar.height,
+            width=self.page.window_width,
+            alignment=ft.MainAxisAlignment.CENTER
+        )
+        return all
