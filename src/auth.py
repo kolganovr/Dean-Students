@@ -28,6 +28,28 @@ class Auth:
             
         return email, password
     
+    def _handleExceptions(e: Exception):
+        """
+        JSON обработка ошибок.
+
+        Параметры:
+            e (Exception): Ошибка при работе с аутентификацией
+        
+        Поднимает:
+            ValueError с описанием ошибок
+            ValueError c кодом ошибки если ошибка неизвестна
+        """
+        message = json.loads(e.args[1])['error']['message']
+        if message == "INVALID_LOGIN_CREDENTIALS":
+            raise ValueError("Неверные логин или пароль!")
+        elif message == "INVALID_EMAIL":
+            raise ValueError("Неверный email!")
+        elif message == "EMAIL_EXISTS":
+            raise ValueError("Пользователь с таким email уже существует!")
+        else:
+            # TODO: Сделать логирование ошибок в файл или в cloud storage
+            raise ValueError(message)
+    
     @staticmethod
     def delete_user(email=None, password=None):
         """
@@ -51,8 +73,7 @@ class Auth:
             print(e)
             return False
         return True
-            
-    
+        
     @staticmethod
     def login(email=None, password=None):
         """
@@ -74,13 +95,7 @@ class Auth:
         try:
             user = auth.sign_in_with_email_and_password(email, password)
         except Exception as e:
-            message = json.loads(str(e))['error']['message']
-            if message == "INVALID_LOGIN_CREDENTIALS":
-                raise ValueError("Неверные логин или пароль!")
-            elif message == "INVALID_EMAIL":
-                raise ValueError("Неверный email!")
-            else:
-                raise ValueError(message)
+            Auth._handleExceptions(e)
         
         print("Вы успешно вошли!")
         return user
@@ -113,13 +128,7 @@ class Auth:
         try:
             user = auth.create_user_with_email_and_password(email, password)
         except Exception as e:
-            message = json.loads(e.args[1])['error']['message']
-            if message == "EMAIL_EXISTS":
-                raise ValueError("Пользователь с таким email уже существует!")
-            elif message == "INVALID_EMAIL":
-                raise ValueError("Неверный email!")
-            else:
-                raise ValueError(message)
+            Auth._handleExceptions(e)
         
         print("Вы успешно зарегистрировались!")
         return user
@@ -133,8 +142,7 @@ class Auth:
             auth.current_user = None
             return True
         except Exception as e:
-            message = json.loads(e.args[1])['error']['message']
-            raise ValueError(message)
+            Auth._handleExceptions(e)
 
     
     @staticmethod
