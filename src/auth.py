@@ -1,4 +1,5 @@
 from firebase import auth
+import json
 
 class Auth:
     def _get_emeil_and_password(confirmation=False):
@@ -73,14 +74,15 @@ class Auth:
         try:
             user = auth.sign_in_with_email_and_password(email, password)
         except Exception as e:
-            if "INVALID_LOGIN_CREDENTIALS" in str(e):
+            message = json.loads(str(e))['error']['message']
+            if message == "INVALID_LOGIN_CREDENTIALS":
                 raise ValueError("Неверные логин или пароль!")
+            elif message == "INVALID_EMAIL":
+                raise ValueError("Неверный email!")
             else:
-                print(e)
-            return None
+                raise ValueError(message)
         
         print("Вы успешно вошли!")
-        Auth.user = user
         return user
 
     @staticmethod
@@ -111,11 +113,13 @@ class Auth:
         try:
             user = auth.create_user_with_email_and_password(email, password)
         except Exception as e:
-            if "EMAIL_EXISTS" in str(e):
+            message = json.loads(e.args[1])['error']['message']
+            if message == "EMAIL_EXISTS":
                 raise ValueError("Пользователь с таким email уже существует!")
+            elif message == "INVALID_EMAIL":
+                raise ValueError("Неверный email!")
             else:
-                print(e)
-            return None
+                raise ValueError(message)
         
         print("Вы успешно зарегистрировались!")
         return user
@@ -129,8 +133,8 @@ class Auth:
             auth.current_user = None
             return True
         except Exception as e:
-            print(e)
-            return False
+            message = json.loads(e.args[1])['error']['message']
+            raise ValueError(message)
 
     
     @staticmethod
