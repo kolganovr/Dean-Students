@@ -52,6 +52,8 @@ class Auth:
         
         if message == "INVALID_LOGIN_CREDENTIALS":
             raise ValueError("Неверные логин или пароль!")
+        elif message == "MISSING_PASSWORD":
+            raise ValueError("Не указан пароль!")
         elif message == "INVALID_EMAIL":
             raise ValueError("Неверный email!")
         elif message == "EMAIL_EXISTS":

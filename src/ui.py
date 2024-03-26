@@ -11,7 +11,7 @@ class UI:
     def changePage(self, pageNum: int):
         self.page.navigation_bar.selected_index = pageNum
         if pageNum == 0:
-            self.page.controls = [self.mainPage.build()]
+            self.page.controls = [self.searchPage.build()]
             self.page.update()
         elif pageNum == 2:
             self.page.controls = [self.authPage.build()]
@@ -21,7 +21,7 @@ class UI:
         self.page = page
         page.title = "Деканат-студенты"
         self.authPage = AuthPage(self)
-        self.mainPage = SearchPage(self)
+        self.searchPage = SearchPage(self)
         page.window_height = 900
         page.window_width = 1600
 
@@ -45,49 +45,85 @@ class UI:
         page.controls = [self.authPage.build()]
         page.update()
 
-class SearchResults:
-    def __init__(self, page: ft.Page):
-        # TODO: Реализовать инициализацию
-        self.page = page
-        pass
-
-    def build(self):
-        # div = ft.VerticalDivider() # TODO: Может быть сделать возможность двигать слайдер
-        card = ft.Column(
-                [ft.ResponsiveRow(
-                    [ft.Card(
-                        ft.Container(   
-                            ft.Column(
-                                controls=[ft.Card(ft.Container(ft.Text("Тут будет карточка поиска"), padding=20))],
-                                horizontal_alignment=ft.CrossAxisAlignment.CENTER
-                            ),
-                            padding=20,
-                        ),
-                        col={"xs":3, "sm": 3, "md": 4, "xl": 5},
-                    )],
-                    alignment=ft.MainAxisAlignment.END
-                )],
-
-                height=self.page.window_height-self.page.navigation_bar.height,
-                width=self.page.window_width,
-                alignment=ft.MainAxisAlignment.CENTER
-            )
-        return ft.ResponsiveRow([card], alignment=ft.MainAxisAlignment.END)
-
+    def deleteDropdown(self, value: str):
+        find = False
+        if len(self.searchPage.searchDrops) > 0:
+            for i in range(len(self.searchPage.searchDrops)):
+                block = self.searchPage.searchDrops[i]
+                if block.controls[0].value == value:
+                    self.searchPage.searchDrops.pop(i)
+                    find = True
+                    break
+            if find:
+                self.changePage(0)
+        if not find:
+            Dialog(self.page, "Ошибка удаления", "Не удалось удалить блок", backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
 
 class SearchPage:
     """
     Класс для отображения страницы поиска
     """
+    
+    searchCategories = ["1", "2", "3"]        
+    class SearchResults:
+        """
+        Класс для отображения результатов поиска
+        """
+        def __init__(self, page: ft.Page):
+            # TODO: Реализовать инициализацию
+            self.page = page
+            self.reslts = []
+            
+        def build(self):
+            # div = ft.VerticalDivider() # TODO: Может быть сделать возможность двигать слайдер
+            card = ft.Column(
+                    [ft.ResponsiveRow(
+                        [ft.Card(
+                            ft.Container(   
+                                ft.Column(
+                                    controls=[ft.Card(ft.Container(ft.Text("Тут будет карточка поиска"), padding=20))],
+                                    horizontal_alignment=ft.CrossAxisAlignment.CENTER
+                                ),
+                                padding=20,
+                            ),
+                            col={"xs":3, "sm": 3, "md": 4, "xl": 5},
+                        )],
+                        alignment=ft.MainAxisAlignment.END
+                    )],
+
+                    height=self.page.window_height-self.page.navigation_bar.height,
+                    width=self.page.window_width,
+                    alignment=ft.MainAxisAlignment.CENTER
+                )
+            return card
+        
     def __init__(self, ui: UI):
         self.ui = ui
         self.page = ui.page
         self.title = ft.Text("Поиск", size=50, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER)
+        self.searchRes = self.SearchResults(self.page)
+        self.searchDrops = [SearchDropdown(self.ui, 0, self.searchCategories).build()]
+
+    def addDropdown(self):
+        self.searchDrops.append(SearchDropdown(self.ui, len(self.searchDrops), self.searchCategories).build())
+        self.ui.changePage(0)
 
     def build(self):
         if Auth.getUser() is not None:
-            card1 = SearchResults(self.page).build()
-            return card1
+            plusDropButton = ft.IconButton(
+                icon=ft.icons.ADD_OUTLINED,
+                on_click=lambda e: self.addDropdown()
+            )
+            # card1 = self.searchRes.build()
+            return ft.ResponsiveRow([
+                ft.Column(
+                    [self.title, *self.searchDrops, plusDropButton],
+                    alignment=ft.MainAxisAlignment.CENTER, 
+                    height=self.page.window_height-self.page.navigation_bar.height,
+                    col={"xs": 12, "sm": 12, "md": 8, "xl": 7},
+                ),
+                # card1
+            ])
         else:
             return ft.Column(
                 [ft.Text("Для просмотра информации необходимо войти в аккаунт", size=20, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER)], 
@@ -96,6 +132,24 @@ class SearchPage:
                 width=self.page.window_width,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER
             )
+        
+class SearchDropdown:
+    def __init__(self, ui: UI, index: int, variants: list[str]):
+        # TODO: Реализовать инициализацию
+        self.page = ui.page
+        self.ui = ui
+        self.variants = variants
+        self.index = index
+
+    def build(self):
+        drop = ft.Dropdown(
+            options=[ft.dropdown.Option(variant) for variant in self.variants]
+        )
+        delButton = ft.IconButton(
+            icon=ft.icons.DELETE_OUTLINED,
+            on_click=lambda e: self.ui.deleteDropdown(drop.value)
+        )
+        return ft.Row(controls=[drop, delButton])
 
     
 
