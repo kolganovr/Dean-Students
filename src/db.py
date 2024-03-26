@@ -246,4 +246,14 @@ class DB:
             for student in result.each():
                 students.add(Student(**student.val()))
 
+        # Убеждаемся что у всех вариантов исполняются одновременно все критерии
+        for key, value in criterias.items():
+            path = Student.getPathToField(key) # 'personal_info/name'
+            for student in students.copy():
+                current_data_pointer = student.__dict__()
+                for step in path.split("/"):
+                    current_data_pointer = current_data_pointer[step]
+                if current_data_pointer != value:
+                    students.remove(student)
+
         return list(students) if len(students) > 0 else None
