@@ -13,54 +13,81 @@ class UI:
         if pageNum == 0:
             self.page.controls = [self.mainPage.build()]
             self.page.update()
-        elif pageNum == 1:
+        elif pageNum == 2:
             self.page.controls = [self.authPage.build()]
             self.page.update()
 
     def main(self, page: ft.Page):
         self.page = page
+        page.title = "Деканат-студенты"
         self.authPage = AuthPage(self)
-        self.mainPage = MainPage(self)
+        self.mainPage = SearchPage(self)
         page.window_height = 900
         page.window_width = 1600
 
         self.navBar = ft.NavigationBar(
             destinations=[
                 ft.NavigationDestination(
-                    label="Главная", icon=ft.icons.HOME_OUTLINED, selected_icon=ft.icons.HOME
+                    label="Поиск", icon=ft.icons.SEARCH_OUTLINED, selected_icon=ft.icons.SEARCH
+                ),
+                ft.NavigationDestination(
+                    label="Изменение", icon=ft.icons.EDIT_OUTLINED, selected_icon=ft.icons.EDIT
                 ),
                 ft.NavigationDestination(
                     label="Вход", icon=ft.icons.LOGIN_OUTLINED, selected_icon=ft.icons.LOGIN
                 )
             ],
             on_change=lambda e: self.changePage(e.control.selected_index),
-            selected_index=1,
+            selected_index=2,
             height=80
         )
         page.navigation_bar = self.navBar
         page.controls = [self.authPage.build()]
         page.update()
 
+class SearchResults:
+    def __init__(self, page: ft.Page):
+        # TODO: Реализовать инициализацию
+        self.page = page
+        pass
 
-class MainPage:
+    def build(self):
+        # div = ft.VerticalDivider() # TODO: Может быть сделать возможность двигать слайдер
+        card = ft.Column(
+                [ft.ResponsiveRow(
+                    [ft.Card(
+                        ft.Container(   
+                            ft.Column(
+                                controls=[ft.Card(ft.Container(ft.Text("Тут будет карточка поиска"), padding=20))],
+                                horizontal_alignment=ft.CrossAxisAlignment.CENTER
+                            ),
+                            padding=20,
+                        ),
+                        col={"xs":3, "sm": 3, "md": 4, "xl": 5},
+                    )],
+                    alignment=ft.MainAxisAlignment.END
+                )],
+
+                height=self.page.window_height-self.page.navigation_bar.height,
+                width=self.page.window_width,
+                alignment=ft.MainAxisAlignment.CENTER
+            )
+        return ft.ResponsiveRow([card], alignment=ft.MainAxisAlignment.END)
+
+
+class SearchPage:
     """
-    Класс для отображения главной страницы
+    Класс для отображения страницы поиска
     """
     def __init__(self, ui: UI):
         self.ui = ui
         self.page = ui.page
-        self.page.title = "Деканат-Студенты"
-        self.title = ft.Text("Деканат-Студенты", size=50, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER)
+        self.title = ft.Text("Поиск", size=50, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER)
 
     def build(self):
         if Auth.getUser() is not None:
-            return ft.Column(
-                [self.title], 
-                alignment=ft.MainAxisAlignment.CENTER, 
-                height=self.page.window_height-self.page.navigation_bar.height,
-                width=self.page.window_width,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER
-            )
+            card1 = SearchResults(self.page).build()
+            return card1
         else:
             return ft.Column(
                 [ft.Text("Для просмотра информации необходимо войти в аккаунт", size=20, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER)], 
@@ -150,7 +177,7 @@ class AuthPage:
             self.currentEmail.value = ""
             self.clickedRegister = False
             # Обновляем страницу
-            self.ui.changePage(1)
+            self.ui.changePage(2)
 
         self.emailField = ft.TextField(label="Email", multiline=False, hint_text="example@example.com")
         self.passwordField = ft.TextField(label="Пароль", password=True, can_reveal_password=True)
