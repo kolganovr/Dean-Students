@@ -57,7 +57,8 @@ class UI:
             if find:
                 self.changePage(0)
         if not find:
-            Dialog(self.page, "Ошибка удаления", "Не удалось удалить блок", backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+            Dialog(self.page, "Ошибка удаления", "Не удалось удалить блок", 
+                   backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
 
 class SearchPage:
     """
@@ -75,10 +76,11 @@ class SearchPage:
             self.reslts = []
             
         def build(self):
-            # div = ft.VerticalDivider() # TODO: Может быть сделать возможность двигать слайдер
+            div = ft.VerticalDivider() # TODO: Может быть сделать возможность двигать слайдер
             card = ft.Column(
                     [ft.ResponsiveRow(
-                        [ft.Card(
+                        [div,
+                         ft.Card(
                             ft.Container(   
                                 ft.Column(
                                     controls=[ft.Card(ft.Container(ft.Text("Тут будет карточка поиска"), padding=20))],
@@ -86,14 +88,11 @@ class SearchPage:
                                 ),
                                 padding=20,
                             ),
-                            col={"xs":3, "sm": 3, "md": 4, "xl": 5},
                         )],
                         alignment=ft.MainAxisAlignment.END
                     )],
-
-                    height=self.page.window_height-self.page.navigation_bar.height,
-                    width=self.page.window_width,
-                    alignment=ft.MainAxisAlignment.CENTER
+                    alignment=ft.MainAxisAlignment.CENTER,
+                    col={'xs': 12, 'sm': 12, 'md': 7, 'xl': 7}
                 )
             return card
         
@@ -112,18 +111,29 @@ class SearchPage:
         if Auth.getUser() is not None:
             plusDropButton = ft.IconButton(
                 icon=ft.icons.ADD_OUTLINED,
-                on_click=lambda e: self.addDropdown()
+                on_click=lambda e: self.addDropdown(),
             )
-            # card1 = self.searchRes.build()
-            return ft.ResponsiveRow([
-                ft.Column(
-                    [self.title, *self.searchDrops, plusDropButton],
-                    alignment=ft.MainAxisAlignment.CENTER, 
-                    height=self.page.window_height-self.page.navigation_bar.height,
-                    col={"xs": 12, "sm": 12, "md": 8, "xl": 7},
-                ),
-                # card1
-            ])
+            findButton = ft.ElevatedButton(
+                "Найти",
+                # on_click
+            )
+            buttons = ft.Row([plusDropButton, findButton], alignment=ft.MainAxisAlignment.CENTER)
+            card1 = self.searchRes.build()
+            return ft.Column(
+                [ft.ResponsiveRow([
+                    ft.Column(
+                        [self.title, *self.searchDrops, buttons],
+                        alignment=ft.MainAxisAlignment.CENTER,
+                        horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
+                        col={"xs": 12, "sm": 12, "md": 5, "xl": 5}
+                        ),
+                        card1
+                    ],
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER
+                )],
+                height=self.page.window_height-self.page.navigation_bar.height,
+                alignment=ft.MainAxisAlignment.CENTER,
+            )
         else:
             return ft.Column(
                 [ft.Text("Для просмотра информации необходимо войти в аккаунт", size=20, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER)], 
@@ -143,13 +153,20 @@ class SearchDropdown:
 
     def build(self):
         drop = ft.Dropdown(
-            options=[ft.dropdown.Option(variant) for variant in self.variants]
+            options=[ft.dropdown.Option(variant) for variant in self.variants],
+            hint_text="Выберите параметр",
+            col={"xs": 5, "sm": 5, "md": 5, "xl": 5},
+        )
+        valueField = ft.TextField(
+            label="Значение", multiline=False, hint_text="Введите значение",
+            col={"xs": 5, "sm": 5, "md": 5, "xl": 5}
         )
         delButton = ft.IconButton(
             icon=ft.icons.DELETE_OUTLINED,
-            on_click=lambda e: self.ui.deleteDropdown(drop.value)
+            on_click=lambda e: self.ui.deleteDropdown(drop.value),
+            col={"xs": 2, "sm": 2, "md": 2, "xl": 2},
         )
-        return ft.Row(controls=[drop, delButton])
+        return ft.ResponsiveRow(controls=[drop, valueField, delButton], vertical_alignment=ft.CrossAxisAlignment.CENTER)
 
     
 
