@@ -75,6 +75,15 @@ class Student():
         
         raise ValueError(f"Invalid field name '{fieldName}'")
     
+    def getFieldByPath(self, path: str):
+        # Получаем значение поля по пути к нему
+        d = self.__dict__()
+        for step in path.split("/"):
+            if type(d[step]) is dict:
+                d = d[step]
+            else:
+                return d[step]
+    
     @classmethod
     def getKeys(cls):
         """

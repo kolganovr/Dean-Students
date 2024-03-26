@@ -2,6 +2,7 @@ import flet as ft
 from auth import Auth
 from db import DB
 from student import Student
+from datetime import datetime
 
 class UI:
     """
@@ -96,12 +97,15 @@ class SearchPage:
                 self.criteria = criteria
                 self.isSelected = False
             
+            def change(self, e):
+                self.isSelected = not self.isSelected
+            
             def build(self):
                 #           Кол-во записей в поиске
                 # Чекбокс
                 #           Критерии поиска
 
-                self.checkBox = ft.Checkbox(value=self.isSelected)
+                self.checkBox = ft.Checkbox(value=self.isSelected, on_change=self.change)
                 self.count = ft.Text(str(len(self.res)), size=20)
                 
                 # Переименовываем ключи студента в ключи ui {'age':...} -> {'Возраст':...} используя SearchPage.keysStudentToUi
@@ -110,7 +114,7 @@ class SearchPage:
                 fineTextCriteria = ""
                 for key in self.criteria:
                     fineTextCriteria += f'{key}: {self.criteria[key]}, '
-                fineTextCriteria = fineTextCriteria.strip()
+                fineTextCriteria = fineTextCriteria.strip()[:-1]
                 fineTextCriteria = ft.Text(fineTextCriteria, size=20)
 
                 column = ft.Column(
@@ -130,7 +134,6 @@ class SearchPage:
                 )
             
         def __init__(self, page: ft.Page):
-            # TODO: Реализовать инициализацию
             self.page = page
             self.results = [] # Список списков словарей студентов - результатов поиска
             self.criterias = [] # Список списков словарей критериев поиска
@@ -140,13 +143,48 @@ class SearchPage:
             #self.reslutsCards.append([self.SearchResultsCard(self.results[i]).build() for i in range(len(self.results))])
             self.resulutsCards = []
             for i in range(len(self.results)):
-                self.resulutsCards.append(self.SearchResultsCard(self.results[i], self.criterias[i]).build())
+                self.resulutsCards.append(self.SearchResultsCard(self.results[i], self.criterias[i]))
+        
+        def exportToCSV(self):
+            # Перебираем карточки резульатов поиска и если у них стоит чекбокс, то экспортируем их в один CSV файл
+            selectedResults = []
+            for i in range(len(self.resulutsCards)):
+                if self.resulutsCards[i].isSelected:
+                    for j in range(len(self.results[i])):
+                        selectedResults.append(self.results[i][j])
+
+            selectedResults = list(set(selectedResults))
+
+            if len(selectedResults) == 0:
+                Dialog(self.page, "Ошибка экспорта", "Ничего не выбрано", 
+                   backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+                return
+
+            # Пишем в CSV
+            time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            with open(f"export_{time}.csv", 'w', newline='', encoding='utf-8') as csvfile:
+                fieldnames = Student.getKeys()
+                csvfile.write(f"{';'.join(fieldnames)}\n")
+
+                for i in range(len(fieldnames)):
+                    fieldnames[i] = Student.getPathToField(fieldnames[i])
+
+                for student in selectedResults:
+                    row = []
+                    for field in fieldnames:
+                        val = str(student.getFieldByPath(field)).replace(';', ",")
+                        row.append(val)
+                    csvfile.write(f"{';'.join(row)}\n")
+            
+
+            Dialog(self.page, "Успешно", "Экспорт завершен", 
+                   backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
             
         def build(self):
             self.fillCards()
             div = ft.VerticalDivider() # TODO: Может быть сделать возможность двигать слайдер
             scrollCol = ft.Column(
-                controls=[self.resulutsCards[i] for i in range(len(self.resulutsCards))],
+                controls=[self.resulutsCards[i].build() for i in range(len(self.resulutsCards))],
                 scroll=ft.ScrollMode.ALWAYS,
             )
             showButton = ft.ElevatedButton(
@@ -154,6 +192,7 @@ class SearchPage:
             )
             exportButton = ft.ElevatedButton(
                 "Экспорт в CSV",
+                on_click=lambda e: self.exportToCSV(),
             )
             buttonRow = ft.Row(
                 [showButton, exportButton], alignment=ft.MainAxisAlignment.SPACE_EVENLY
@@ -218,7 +257,6 @@ class SearchPage:
                    backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
             return
         
-        print(*res, sep="\n")
         self.searchRes.results.append(res)
         self.searchRes.criterias.append(crireria)
         self.ui.changePage(0)
@@ -262,7 +300,6 @@ class SearchPage:
         
 class SearchDropdown:
     def __init__(self, ui: UI, index: int, variants: list[str]):
-        # TODO: Реализовать инициализацию
         self.page = ui.page
         self.ui = ui
         self.variants = variants
