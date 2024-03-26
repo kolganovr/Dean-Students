@@ -39,7 +39,17 @@ class Auth:
             ValueError с описанием ошибок
             ValueError c кодом ошибки если ошибка неизвестна
         """
-        message = json.loads(e.args[1])['error']['message']
+        def logError(e):
+            # TODO: Сделать логирование ошибок в файл или в cloud storage
+            print(e)
+        
+        try:
+            message = json.loads(e.args[1])['error']['message']
+        except:
+            if "Failed to establish a new connection" in str(e):
+                raise ValueError("Нет соединения с интернетом")
+            raise ValueError("Неизвестная ошибка!")
+        
         if message == "INVALID_LOGIN_CREDENTIALS":
             raise ValueError("Неверные логин или пароль!")
         elif message == "INVALID_EMAIL":
@@ -47,7 +57,7 @@ class Auth:
         elif message == "EMAIL_EXISTS":
             raise ValueError("Пользователь с таким email уже существует!")
         else:
-            # TODO: Сделать логирование ошибок в файл или в cloud storage
+            logError(e)
             raise ValueError(message)
     
     @staticmethod
