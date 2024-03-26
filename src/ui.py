@@ -1,5 +1,7 @@
 import flet as ft
 from auth import Auth
+from db import DB
+from student import Student
 
 class UI:
     """
@@ -64,36 +66,108 @@ class SearchPage:
     """
     Класс для отображения страницы поиска
     """
+
+    def getKeysStudentAndUI(searchCategories: list):
+        """
+        Метод для получения соответствия ключей для студента и ключей для UI
+
+        Возвращает:
+            tuple: (dict, dict) - (UiToStudent, StudentToUi)
+        """
+        studentKeys = Student.getKeys()
+        keysUiToStudent = {searchCategories[i]: key for i, key in enumerate(studentKeys)}
+        keysStudentToUi = {key: searchCategories[i] for i, key in enumerate(studentKeys)}
+
+        return keysUiToStudent, keysStudentToUi
     
-    searchCategories = ["1", "2", "3"]        
+    # ['surname', 'name', 'patronymic', 'age', 'homeCity', 'address', 'phoneNumber', 'group', 'course', 'pass_num', 'available_rooms', 'ID', 'gradebookID']
+    searchCategories = ["Фамилия", "Имя", "Отчество", "Возраст", "Город", "Адрес", "Телефон", "Группа", "Курс", "Номер пропуска", "Доступные аудитории", "Номер студенческого", "Номер зачетки"]  
+    keysUiToStudent, keysStudentToUi = getKeysStudentAndUI(searchCategories)      
     class SearchResults:
         """
         Класс для отображения результатов поиска
         """
+        class SearchResultsCard:
+            """
+            Класс для отображения карточки с результатами поиска
+            """
+            def __init__(self, res: dict, criteria: dict):
+                self.res = res
+                self.criteria = criteria
+                self.isSelected = False
+            
+            def build(self):
+                #           Кол-во записей в поиске
+                # Чекбокс
+                #           Критерии поиска
+
+                self.checkBox = ft.Checkbox(value=self.isSelected)
+                self.count = ft.Text(str(len(self.res)), size=20)
+                
+                # Переименовываем ключи студента в ключи ui {'age':...} -> {'Возраст':...} используя SearchPage.keysStudentToUi
+                self.criteria = {SearchPage.keysStudentToUi[key]: value for key, value in self.criteria.items()}
+
+                fineTextCriteria = ""
+                for key in self.criteria:
+                    fineTextCriteria += f'{key}: {self.criteria[key]}, '
+                fineTextCriteria = fineTextCriteria.strip()
+                fineTextCriteria = ft.Text(fineTextCriteria, size=20)
+
+                column = ft.Column(
+                    [
+                        self.count, fineTextCriteria
+                    ]
+                )
+
+                return ft.Card(
+                    content=ft.Container(
+                        content=ft.Row(
+                            [self.checkBox, column],
+                            alignment=ft.MainAxisAlignment.START
+                        ),
+                        padding=20
+                    )
+                )
+            
         def __init__(self, page: ft.Page):
             # TODO: Реализовать инициализацию
             self.page = page
-            self.reslts = []
+            self.results = [] # Список списков словарей студентов - результатов поиска
+            self.criterias = [] # Список списков словарей критериев поиска
+            self.resulutsCards = []
+        
+        def fillCards(self):
+            #self.reslutsCards.append([self.SearchResultsCard(self.results[i]).build() for i in range(len(self.results))])
+            self.resulutsCards = []
+            for i in range(len(self.results)):
+                self.resulutsCards.append(self.SearchResultsCard(self.results[i], self.criterias[i]).build())
             
         def build(self):
+            self.fillCards()
             div = ft.VerticalDivider() # TODO: Может быть сделать возможность двигать слайдер
-            card = ft.Column(
-                    [ft.ResponsiveRow(
-                        [div,
-                         ft.Card(
-                            ft.Container(   
-                                ft.Column(
-                                    controls=[ft.Card(ft.Container(ft.Text("Тут будет карточка поиска"), padding=20))],
-                                    horizontal_alignment=ft.CrossAxisAlignment.CENTER
-                                ),
-                                padding=20,
-                            ),
-                        )],
-                        alignment=ft.MainAxisAlignment.END
-                    )],
-                    alignment=ft.MainAxisAlignment.CENTER,
-                    col={'xs': 12, 'sm': 12, 'md': 7, 'xl': 7}
-                )
+            scrollCol = ft.Column(
+                controls=[self.resulutsCards[i] for i in range(len(self.resulutsCards))],
+                scroll=ft.ScrollMode.ALWAYS,
+            )
+            showButton = ft.ElevatedButton(
+                "Показать",
+            )
+            exportButton = ft.ElevatedButton(
+                "Экспорт в CSV",
+            )
+            buttonRow = ft.Row(
+                [showButton, exportButton], alignment=ft.MainAxisAlignment.SPACE_EVENLY
+            )
+            card = ft.Card(
+                content=ft.Container(
+                    content=ft.Column(
+                        [scrollCol, buttonRow]
+                    ),
+                    padding=20
+                ),
+                col={'xs': 12, 'sm': 12, 'md': 7, 'xl': 7}
+            )
+            
             return card
         
     def __init__(self, ui: UI):
@@ -103,9 +177,52 @@ class SearchPage:
         self.searchRes = self.SearchResults(self.page)
         self.searchDrops = [SearchDropdown(self.ui, 0, self.searchCategories).build()]
 
+
     def addDropdown(self):
         self.searchDrops.append(SearchDropdown(self.ui, len(self.searchDrops), self.searchCategories).build())
         self.ui.changePage(0)
+
+    def find(self):
+        if len(self.searchDrops) == 0:
+            Dialog(self.page, "Ошибка поиска", "Для начала добавьте блоки", 
+                   backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+            return
+    
+        crireria = {}
+        for i in range(len(self.searchDrops)):
+            block = self.searchDrops[i]
+            dropValue = block.controls[0].value
+            fieldValue = block.controls[1].value
+
+            if dropValue is None or dropValue == "" or fieldValue is None or fieldValue == "":
+                continue
+
+            # Если уже есть search[dropValue] то показываем Dialog
+            if crireria.get(dropValue) is not None:
+                Dialog(self.page, "Ошибка поиска", f'Для "{dropValue}" уже выбрано значение "{crireria[dropValue]}"', 
+                        backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+                return
+            if dropValue in ['Возраст', 'Номер пропуска', 'Курс']:
+                try:
+                    fieldValue = int(fieldValue)
+                except ValueError:
+                    Dialog(self.page, "Ошибка поиска", f'"{fieldValue}" не является числом', 
+                        backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+                    return
+            crireria[self.keysUiToStudent[dropValue]] = fieldValue
+        
+        
+        res = DB.findByCriteria(crireria)
+        if res is None:
+            Dialog(self.page, "Ошибка поиска", "Ничего не найдено", 
+                   backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+            return
+        
+        print(*res, sep="\n")
+        self.searchRes.results.append(res)
+        self.searchRes.criterias.append(crireria)
+        self.ui.changePage(0)
+        
 
     def build(self):
         if Auth.getUser() is not None:
@@ -115,9 +232,9 @@ class SearchPage:
             )
             findButton = ft.ElevatedButton(
                 "Найти",
-                # on_click
+                on_click=lambda e: self.find(),
             )
-            buttons = ft.Row([plusDropButton, findButton], alignment=ft.MainAxisAlignment.CENTER)
+            buttons = ft.Row([plusDropButton, findButton], alignment=ft.MainAxisAlignment.SPACE_EVENLY)
             card1 = self.searchRes.build()
             return ft.Column(
                 [ft.ResponsiveRow([
@@ -157,6 +274,7 @@ class SearchDropdown:
             hint_text="Выберите параметр",
             col={"xs": 5, "sm": 5, "md": 5, "xl": 5},
         )
+        # TODO: Сделать неактивным если drop пустой
         valueField = ft.TextField(
             label="Значение", multiline=False, hint_text="Введите значение",
             col={"xs": 5, "sm": 5, "md": 5, "xl": 5}

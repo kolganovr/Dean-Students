@@ -74,8 +74,22 @@ class Student():
                 return path
         
         raise ValueError(f"Invalid field name '{fieldName}'")
-            
     
+    @classmethod
+    def getKeys(cls):
+        """
+        Возвращает список ключей словаря студента нижнего уровня
+        """
+        d = cls.__dict__['__dict__'](cls)
+        topLevelKeys = list(d.keys())
+        keys = []
+        for key in topLevelKeys:
+            if type(d[key]) is dict:
+                keys += list(d[key].keys())
+            else:
+                keys.append(key)
+        return keys
+            
     # метод для создания множества (проверка на идентичность)
     def __eq__(self, other):
         return self.__dict__() == other.__dict__()
