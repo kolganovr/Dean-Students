@@ -3,6 +3,7 @@ from auth import Auth, SaverUser
 from db import DB
 from student import Student
 from datetime import datetime
+from os import path, makedirs
 
 class UI:
     """
@@ -146,6 +147,10 @@ class SearchPage:
                 self.resulutsCards.append(self.SearchResultsCard(self.results[i], self.criterias[i]))
         
         def exportToCSV(self):
+            # Если нет папки export, то создаем ее
+            if not path.exists('export'):
+                makedirs('export')
+
             # Перебираем карточки резульатов поиска и если у них стоит чекбокс, то экспортируем их в один CSV файл
             selectedResults = []
             for i in range(len(self.resulutsCards)):
@@ -162,7 +167,7 @@ class SearchPage:
 
             # Пишем в CSV
             time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            with open(f"export_{time}.csv", 'w', newline='', encoding='utf-8') as csvfile:
+            with open(f"export\\export_{time}.csv", 'w', newline='', encoding='utf-8') as csvfile:
                 fieldnames = Student.getKeys()
                 csvfile.write(f"{';'.join(fieldnames)}\n")
 
@@ -176,9 +181,12 @@ class SearchPage:
                         row.append(val)
                     csvfile.write(f"{';'.join(row)}\n")
             
+            # Получаем полный путь к экспортируемому файлу
+            exportedFilePath = path.abspath(f"export\\export_{time}.csv")
 
-            Dialog(self.page, "Успешно", "Экспорт завершен", 
-                   backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+            self.page.set_clipboard(exportedFilePath)
+            Dialog(self.page, "Успешный экспорт", f"Путь скопирован в буфер обмена\nПуть: {exportedFilePath}", 
+                backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
             
         def build(self):
             self.fillCards()
@@ -458,7 +466,7 @@ class Dialog:
         self.backAction = backAction
         self.actions = actions
 
-    def closeDialog(self, e):
+    def closeDialog(self):
         self.page.dialog.open = False
         self.page.update()
     
@@ -467,9 +475,9 @@ class Dialog:
             modal=True,
             title=ft.Text(self.title),
             content=ft.Text(self.content),
-            actions=[self.backAction, *self.actions]
+            actions=[ft.ResponsiveRow([self.backAction, *self.actions])],
         )
-        dialog.actions[0].on_click = self.closeDialog
+        dialog.actions[0].on_click = lambda e: self.closeDialog()
         self.page.dialog = dialog
         dialog.open = True
         self.page.update()
