@@ -100,6 +100,16 @@ class SearchPage:
             
             def change(self, e):
                 self.isSelected = not self.isSelected
+
+            @staticmethod
+            def getNouns(number, words : list):
+                if number % 10 == 1 and number % 100 != 11:
+                    return f'{number} {words[0]}'
+                
+                if number % 10 >= 2 and number % 10 <= 4 and (number % 100 < 10 or number % 100 >= 20):
+                    return f'{number} {words[1]}'
+
+                return f'{number} {words[2]}'
             
             def build(self):
                 #           Кол-во записей в поиске
@@ -107,7 +117,7 @@ class SearchPage:
                 #           Критерии поиска
 
                 self.checkBox = ft.Checkbox(value=self.isSelected, on_change=self.change)
-                self.count = ft.Text(str(len(self.res)), size=20)
+                self.count = ft.Text(f'{self.getNouns(len(self.res), ["запись", "записи", "записей"])}', size=20)
                 
                 # Переименовываем ключи студента в ключи ui {'age':...} -> {'Возраст':...} используя SearchPage.keysStudentToUi
                 self.criteria = {SearchPage.keysStudentToUi[key]: value for key, value in self.criteria.items()}

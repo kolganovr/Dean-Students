@@ -139,7 +139,7 @@ class Auth:
         except:
             if "Failed to establish a new connection" in str(e):
                 raise ValueError("Нет соединения с интернетом")
-            print(f'Error: {e}')
+            logError(e)
             raise ValueError("Неизвестная ошибка!")
         
         if message == "INVALID_LOGIN_CREDENTIALS":
