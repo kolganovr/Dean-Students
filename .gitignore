@@ -153,3 +153,5 @@ cython_debug/
 
 cfg.py
 *.csv
+data
+*.key

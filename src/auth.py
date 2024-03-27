@@ -1,5 +1,96 @@
 from firebase import auth
-import json
+from json import loads
+
+from cryptography.fernet import Fernet
+from os import remove, path, makedirs
+
+class SaverUser:    
+    @staticmethod
+    def saveUser(email, password):
+        """
+        Сохраняет данные пользователя в файл в зашифрованном виде для дальнейшей расшифровки.
+
+        Параметры:
+            email (str): email пользователя
+            password (str): пароль пользователя
+        """
+        # Генерируем ключ для шифрования
+        key = Fernet.generate_key()
+
+        # Если нет папки data, создаем ее
+        if not path.exists('data'):
+            makedirs('data')
+
+        # Сохраняем ключ в файл
+        with open('data\\key.key', 'wb') as file:
+            file.write(key)
+        
+        cipher_suite = Fernet(key)
+
+        # Конвертируем email и пароль пользователя в байты
+        user_data = f"{email}:{password}".encode()
+
+        # Шифруем данные пользователя
+        cipher_text = cipher_suite.encrypt(user_data)
+
+        # Сохраняем зашифрованные данные и ключ, использованный для шифрования, в файл
+        with open('data\\user_data.key', 'w') as file:
+            file.write(cipher_text.decode() + '\n' + key.decode())
+
+
+    @staticmethod
+    def loadUser():
+        """
+        Расшифровывает и возвращает данные пользователя из файла.
+        
+        Возвращает:
+            tuple: (email, password): Данные пользователя
+
+        Поднимает:
+            Exception: Нет сохраненных полльзовательских данных!
+            Exception: Ошибка при чтении файла
+        """
+        # Читаем ключ из файла
+        try:
+            with open('data\\key.key', 'rb') as file:
+                key = file.read()
+        
+            # Читаем зашифрованные данные из файла
+            with open('data\\user_data.key', 'r') as file:
+                data = file.read().split('\n')
+                cipher_text = data[0].encode()
+
+        except FileNotFoundError:
+            raise Exception('Нет сохраненных пользовательских данных!')
+        except Exception as e:
+            raise Exception(e)
+
+        # Создаем набор шифров с использованием ключа
+        cipher_suite = Fernet(key)
+
+        # Расшифровываем данные пользователя
+        plain_text = cipher_suite.decrypt(cipher_text)
+
+        # Конвертируем расшифрованные данные из байтов в строку
+        user_data = plain_text.decode()
+
+        # Разделяем данные пользователя на email и пароль
+        email, password = user_data.split(':')
+
+        return email, password
+
+
+    @staticmethod
+    def deleteSavedUser():
+        """
+        Удаляет файл с данными пользователя.
+        """
+        try:
+            remove('user_data.key')
+            remove('key.key')
+        except FileNotFoundError:
+            pass
+
 
 class Auth:
     def _get_emeil_and_password(confirmation=False):
@@ -41,13 +132,14 @@ class Auth:
         """
         def logError(e):
             # TODO: Сделать логирование ошибок в файл или в cloud storage
-            print(e)
+            print(f'Log: {e}')
         
         try:
-            message = json.loads(e.args[1])['error']['message']
+            message = loads(e.args[1])['error']['message']
         except:
             if "Failed to establish a new connection" in str(e):
                 raise ValueError("Нет соединения с интернетом")
+            print(f'Error: {e}')
             raise ValueError("Неизвестная ошибка!")
         
         if message == "INVALID_LOGIN_CREDENTIALS":
@@ -62,6 +154,7 @@ class Auth:
             logError(e)
             raise ValueError(message)
     
+
     @staticmethod
     def delete_user(email=None, password=None):
         """
@@ -85,6 +178,7 @@ class Auth:
             print(e)
             return False
         return True
+    
         
     @staticmethod
     def login(email=None, password=None):
@@ -110,7 +204,8 @@ class Auth:
             Auth._handleExceptions(e)
         
         print("Вы успешно вошли!")
-        return user
+        return user                    
+
 
     @staticmethod
     def register(email=None, password=None, confirmed_password=None):
@@ -145,6 +240,7 @@ class Auth:
         print("Вы успешно зарегистрировались!")
         return user
     
+    
     @staticmethod
     def signOut():
         """
@@ -166,6 +262,7 @@ class Auth:
             bool: Авторизирован ли пользователь
         """
         return auth.current_user is not None
+    
     
     @staticmethod
     def getUser():

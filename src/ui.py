@@ -1,5 +1,5 @@
 import flet as ft
-from auth import Auth
+from auth import Auth, SaverUser
 from db import DB
 from student import Student
 from datetime import datetime
@@ -182,7 +182,7 @@ class SearchPage:
             
         def build(self):
             self.fillCards()
-            div = ft.VerticalDivider() # TODO: Может быть сделать возможность двигать слайдер
+            # div = ft.VerticalDivider() # TODO: Может быть сделать возможность двигать слайдер
             scrollCol = ft.Column(
                 controls=[self.resulutsCards[i].build() for i in range(len(self.resulutsCards))],
                 scroll=ft.ScrollMode.ALWAYS,
@@ -365,12 +365,27 @@ class AuthPage:
         self.page = ui.page
         self.clickedRegister = False
 
-        def click_enterButton(e):
+        def click_enterButton(recover: bool = False):
+            if recover:
+                # Если восстанавливаем пользователя из памяти
+                try:
+                    email, password = SaverUser.loadUser()
+                except Exception as e:
+                    Dialog(self.page, "Ошибка входа", str(e), backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+                    return
+                
             try:
-                Auth.login(self.emailField.value, self.passwordField.value)
+                if recover:
+                    Auth.login(email, password)
+                else:
+                    Auth.login(self.emailField.value, self.passwordField.value)
             except ValueError as err:
                 Dialog(self.page, "Ошибка входа", str(err), backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
                 return
+            
+            if self.rememberUser:
+                SaverUser.saveUser(self.emailField.value, self.passwordField.value)
+
             self.ui.changePage(0)
             
         def click_registerButton(e):
@@ -388,6 +403,9 @@ class AuthPage:
                 Auth.login(self.emailField.value, self.passwordField.value)
                 self.ui.changePage(0)
 
+        def rememberCheckBox(e):
+            self.rememberUser = e.control.value
+
         def backToEnter(e):
             self.clickedRegister = False
             self.passwordFieldConfirm.value = ""
@@ -396,6 +414,7 @@ class AuthPage:
             
         def click_signOutButton(e):
             Auth.signOut()
+            SaverUser.deleteSavedUser()
             # Очистка полей ввода
             self.emailField.value = ""
             self.passwordField.value = ""
@@ -408,8 +427,11 @@ class AuthPage:
         self.emailField = ft.TextField(label="Email", multiline=False, hint_text="example@example.com")
         self.passwordField = ft.TextField(label="Пароль", password=True, can_reveal_password=True)
         self.passwordFieldConfirm = ft.TextField(label="Подтверждение пароля", password=True, can_reveal_password=True)
-        self.enterButton = ft.ElevatedButton(text="Вход", on_click=click_enterButton)
+        self.enterButton = ft.ElevatedButton(text="Вход", on_click=lambda e: click_enterButton())
         self.registerButton = ft.ElevatedButton(text="Регистрация", on_click=click_registerButton)
+        self.recoverButton = ft.ElevatedButton(text="Войти по сохранённым данным", on_click=lambda e: click_enterButton(recover=True))
+        self.rememberUser = False
+        self.rememberMeCheckbox = ft.Checkbox(label="Запомнить меня", value=False, on_change=lambda e: rememberCheckBox(e))
         self.backButton = ft.ElevatedButton(text="Назад", on_click=backToEnter)
 
         self.currentEmail = ft.Text("", size=20, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER)
@@ -423,7 +445,7 @@ class AuthPage:
             if register or self.clickedRegister:
                 return self.InfoCard([self.emailField, self.passwordField, self.passwordFieldConfirm, ft.Row([self.backButton, self.registerButton])], page=self.page).build()
             else:
-                return self.InfoCard([self.emailField, self.passwordField, ft.Row([self.enterButton, self.registerButton])], page=self.page).build()
+                return self.InfoCard([self.emailField, self.passwordField, self.rememberMeCheckbox, ft.Row([self.enterButton, self.recoverButton, self.registerButton])], page=self.page).build()
             
 class Dialog:
     """
