@@ -4,7 +4,7 @@ import sys
 sys.path.append('src')
 
 from student import Student
-from main import DB
+from db import DB
 
 # Фикстура для создания тестовых студентов
 @pytest.fixture
