@@ -159,7 +159,10 @@ class DB:
             hash = student
 
         # Получаем текущие данные о студенте
-        current_data = DB.getStudentByHash(hash).__dict__()
+        try:
+            current_data = DB.getStudentByHash(hash).__dict__()
+        except AttributeError:
+            raise ValueError(f"Студента больше нет в базе данных")
 
         # Обновляем данные
         newData = DB._updateValues(current_data, changes)
@@ -169,12 +172,11 @@ class DB:
         
         new_hash = DB._getHash(newData['personal_info']['surname'], newData['personal_info']['name'], 
                                    newData['personal_info']['age'], newData['contact_info']['phoneNumber'])
+        
+        DB.deleteStudents(hash)
             
         # Обновляем данные о студенте
         db.child("students").child(new_hash).update(newData)
-
-        # Удаляем старого студента
-        DB.deleteStudents(hash)
 
         return new_hash
 

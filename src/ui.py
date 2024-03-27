@@ -17,6 +17,12 @@ class UI:
         if pageNum == 0:
             self.page.controls = [self.searchPage.build()]
             self.page.update()
+        elif pageNum == 1:
+            self.editPage.searchRes.results = self.searchPage.searchRes.results
+            self.editPage.searchRes.resulutsCards = self.searchPage.searchRes.resulutsCards
+            self.editPage.searchRes.criterias = self.searchPage.searchRes.criterias
+            self.page.controls = [self.editPage.build()]
+            self.page.update()
         elif pageNum == 2:
             self.page.controls = [self.authPage.build()]
             self.page.update()
@@ -25,7 +31,11 @@ class UI:
         self.page = page
         page.title = "Деканат-студенты"
         self.authPage = AuthPage(self)
-        self.searchPage = SearchPage(self)
+        self.searchPage = SearchEditPage(self, "Search")
+        self.editPage = SearchEditPage(self, "Edit")
+
+        # TODO: Сделать адпированным под масштабы экрана
+        # TODO: Сделать обновление высоты и ширины блоков при изменении размера экрана (если возможно)
         page.window_height = 900
         page.window_width = 1600
 
@@ -49,22 +59,26 @@ class UI:
         page.controls = [self.authPage.build()]
         page.update()
 
-    def deleteDropdown(self, value: str):
+    def deleteDropdown(self, value: str, mode: str):
         find = False
-        if len(self.searchPage.searchDrops) > 0:
-            for i in range(len(self.searchPage.searchDrops)):
-                block = self.searchPage.searchDrops[i]
+        drops = self.searchPage.searchDrops if mode == "Search" else self.editPage.searchDrops
+        if len(drops) > 0:
+            for i in range(len(drops)):
+                block = drops[i]
                 if block.controls[0].value == value:
-                    self.searchPage.searchDrops.pop(i)
+                    drops.pop(i)
                     find = True
                     break
             if find:
-                self.changePage(0)
+                if mode == "Search":
+                    self.changePage(0)
+                elif mode == "Edit":
+                    self.changePage(1)
         if not find:
             Dialog(self.page, "Ошибка удаления", "Не удалось удалить блок", 
                    backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
 
-class SearchPage:
+class SearchEditPage:
     """
     Класс для отображения страницы поиска
     """
@@ -120,7 +134,7 @@ class SearchPage:
                 self.count = ft.Text(f'{self.getNouns(len(self.res), ["запись", "записи", "записей"])}', size=20)
                 
                 # Переименовываем ключи студента в ключи ui {'age':...} -> {'Возраст':...} используя SearchPage.keysStudentToUi
-                self.criteria = {SearchPage.keysStudentToUi[key]: value for key, value in self.criteria.items()}
+                self.criteria = {SearchEditPage.keysStudentToUi[key]: value for key, value in self.criteria.items()}
 
                 fineTextCriteria = ""
                 for key in self.criteria:
@@ -144,14 +158,14 @@ class SearchPage:
                     )
                 )
             
-        def __init__(self, page: ft.Page):
+        def __init__(self, page: ft.Page, mode: str):
             self.page = page
+            self.mode = mode
             self.results = [] # Список списков словарей студентов - результатов поиска
             self.criterias = [] # Список списков словарей критериев поиска
             self.resulutsCards = []
         
         def fillCards(self):
-            #self.reslutsCards.append([self.SearchResultsCard(self.results[i]).build() for i in range(len(self.results))])
             self.resulutsCards = []
             for i in range(len(self.results)):
                 self.resulutsCards.append(self.SearchResultsCard(self.results[i], self.criterias[i]))
@@ -218,7 +232,7 @@ class SearchPage:
             card = ft.Card(
                 content=ft.Container(
                     content=ft.Column(
-                        [scrollCol, buttonRow]
+                        [scrollCol, buttonRow if self.mode == "Search" else ft.Row()],
                     ),
                     padding=20
                 ),
@@ -227,17 +241,24 @@ class SearchPage:
             
             return card
         
-    def __init__(self, ui: UI):
+    def __init__(self, ui: UI, mode: str = "Search"):
         self.ui = ui
         self.page = ui.page
-        self.title = ft.Text("Поиск", size=50, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER)
-        self.searchRes = self.SearchResults(self.page)
-        self.searchDrops = [SearchDropdown(self.ui, 0, self.searchCategories).build()]
+        self.mode = mode
+        if mode == "Search":
+            self.title = ft.Text("Поиск", size=50, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER)
+        elif mode == "Edit":
+            self.title = ft.Text("Изменение", size=50, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER)
+        self.searchRes = self.SearchResults(self.page, self.mode)
+        self.searchDrops = [SearchDropdown(self.ui, 0, self.searchCategories, self.mode).build()]
 
 
     def addDropdown(self):
-        self.searchDrops.append(SearchDropdown(self.ui, len(self.searchDrops), self.searchCategories).build())
-        self.ui.changePage(0)
+        self.searchDrops.append(SearchDropdown(self.ui, len(self.searchDrops), self.searchCategories, self.mode).build())
+        if self.mode == "Search":
+            self.ui.changePage(0)
+        elif self.mode == "Edit":
+            self.ui.changePage(1)
 
     def find(self):
         if len(self.searchDrops) == 0:
@@ -277,7 +298,71 @@ class SearchPage:
         
         self.searchRes.results.append(res)
         self.searchRes.criterias.append(crireria)
-        self.ui.changePage(0)
+        if self.mode == "Search":
+            self.ui.changePage(0)
+        elif self.mode == "Edit":
+            self.ui.changePage(1)
+
+    def edit(self):
+        # Получаем хеш каждого студента из выбранных SearchResultCard
+        selectedStudents = []
+        for i in range(len(self.searchRes.resulutsCards)):
+            if self.searchRes.resulutsCards[i].isSelected:
+                for j in range(len(self.searchRes.results[i])):
+                    selectedStudents.append(self.searchRes.results[i][j])
+                
+
+        selectedStudents = list(set(selectedStudents))
+
+        if len(selectedStudents) == 0:
+            Dialog(self.page, "Ошибка изменения", "Для начала выберите хотя бы одного студента", 
+                   backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+            return
+        
+        hashes = [DB.getHashByStudent(student) for student in selectedStudents]
+        
+        # Получаем словарь с изменяемыми данными из дропбоксов
+        changes = {}
+
+        for i in range(len(self.searchDrops)):
+            block = self.searchDrops[i]
+            dropValue = block.controls[0].value
+            fieldValue = block.controls[1].value
+            if dropValue is None or dropValue == "":
+                continue
+            if dropValue in ['Возраст', 'Номер пропуска', 'Курс']:
+                try:
+                    fieldValue = int(fieldValue)
+                except ValueError:
+                    Dialog(self.page, "Ошибка изменения", f'"{fieldValue}" не является числом', 
+                        backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+                    return
+            changes[self.keysUiToStudent[dropValue]] = fieldValue
+        
+        if len(changes) == 0:
+            Dialog(self.page, "Ошибка изменения", "Нет изменений",
+                   backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+            return
+        
+        for hash in hashes:
+            print(hash)
+            try:
+                DB.updateStudent(hash, changes)
+            except Exception as e:
+                Dialog(self.page, "Ошибка изменения", str(e), 
+                    backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+                return
+
+        Dialog(self.page, "Изменения сохранены", "Все изменения сохранены",
+               backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+        
+        # Удаляем все карточки поиска ибо в них могли измениться данные
+        # TODO: Обновлять все затронутые карточки
+        self.ui.searchPage.searchRes.results = []
+        self.ui.searchPage.searchRes.criterias = []
+        self.ui.searchPage.searchRes.resulutsCards = []
+        
+        self.ui.changePage(1)
         
 
     def build(self):
@@ -287,10 +372,15 @@ class SearchPage:
                 on_click=lambda e: self.addDropdown(),
             )
             findButton = ft.ElevatedButton(
-                "Найти",
+                "Найти",
                 on_click=lambda e: self.find(),
             )
-            buttons = ft.Row([plusDropButton, findButton], alignment=ft.MainAxisAlignment.SPACE_EVENLY)
+            editButton = ft.ElevatedButton(
+                "Редактировать",
+                on_click=lambda e: self.edit(),
+            )
+            
+            buttons = ft.Row([plusDropButton, findButton if self.mode == "Search" else editButton], alignment=ft.MainAxisAlignment.SPACE_EVENLY)
             card1 = self.searchRes.build()
             return ft.Column(
                 [ft.ResponsiveRow([
@@ -317,11 +407,12 @@ class SearchPage:
             )
         
 class SearchDropdown:
-    def __init__(self, ui: UI, index: int, variants: list[str]):
+    def __init__(self, ui: UI, index: int, variants: list[str], mode: str):
         self.page = ui.page
         self.ui = ui
         self.variants = variants
         self.index = index
+        self.mode = mode
 
     def build(self):
         drop = ft.Dropdown(
@@ -336,7 +427,7 @@ class SearchDropdown:
         )
         delButton = ft.IconButton(
             icon=ft.icons.DELETE_OUTLINED,
-            on_click=lambda e: self.ui.deleteDropdown(drop.value),
+            on_click=lambda e: self.ui.deleteDropdown(drop.value, self.mode),
             col={"xs": 2, "sm": 2, "md": 2, "xl": 2},
         )
         return ft.ResponsiveRow(controls=[drop, valueField, delButton], vertical_alignment=ft.CrossAxisAlignment.CENTER)
