@@ -24,6 +24,9 @@ class UI:
             self.page.controls = [self.editPage.build()]
             self.page.update()
         elif pageNum == 2:
+            self.page.controls = [self.createPage.build()]
+            self.page.update()
+        elif pageNum == 3:
             self.page.controls = [self.authPage.build()]
             self.page.update()
 
@@ -33,6 +36,7 @@ class UI:
         self.authPage = AuthPage(self)
         self.searchPage = SearchEditPage(self, "Search")
         self.editPage = SearchEditPage(self, "Edit")
+        self.createPage = CreatePage(self)
 
         # TODO: Сделать адпированным под масштабы экрана
         # TODO: Сделать обновление высоты и ширины блоков при изменении размера экрана (если возможно)
@@ -48,11 +52,14 @@ class UI:
                     label="Изменение", icon=ft.icons.EDIT_OUTLINED, selected_icon=ft.icons.EDIT
                 ),
                 ft.NavigationDestination(
+                    label="Создание", icon=ft.icons.ADD_OUTLINED, selected_icon=ft.icons.ADD
+                ),
+                ft.NavigationDestination(
                     label="Вход", icon=ft.icons.LOGIN_OUTLINED, selected_icon=ft.icons.LOGIN
                 )
             ],
             on_change=lambda e: self.changePage(e.control.selected_index),
-            selected_index=2,
+            selected_index=3,
             height=80
         )
         page.navigation_bar = self.navBar
@@ -61,9 +68,15 @@ class UI:
 
     def deleteDropdown(self, value: str, mode: str):
         find = False
-        drops = self.searchPage.searchDrops if mode == "Search" else self.editPage.searchDrops
+        if mode == "Search":
+            drops = self.searchPage.searchDrops
+        elif mode == "Edit":
+            drops = self.editPage.searchDrops
+        else:
+            drops = self.createPage.createDrops
+        
         if len(drops) > 0:
-            for i in range(len(drops)):
+            for i in range(len(drops)-1, -1, -1):
                 block = drops[i]
                 if block.controls[0].value == value:
                     drops.pop(i)
@@ -74,9 +87,33 @@ class UI:
                     self.changePage(0)
                 elif mode == "Edit":
                     self.changePage(1)
+                else:
+                    self.changePage(2)
         if not find:
             Dialog(self.page, "Ошибка удаления", "Не удалось удалить блок", 
                    backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+            
+class NeedToLogin:
+    """
+    Класс для отображения страницы, когда пользователь не авторизован
+    """
+    def __init__(self, ui: UI, page: ft.Page, text: str = "Для просмотра информации необходимо войти в аккаунт"):
+        self.ui = ui
+        self.page = page
+        self.title = ft.Text(text, size=20, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER)
+    
+    def build(self):
+        button = ft.ElevatedButton(
+            "На страницу входа",
+            on_click=lambda e: self.ui.changePage(3),
+        )
+        return ft.Column(
+            [self.title, button], 
+            alignment=ft.MainAxisAlignment.CENTER, 
+            height=self.page.window_height-self.page.navigation_bar.height,
+            width=self.page.window_width,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER
+        )
 
 class SearchEditPage:
     """
@@ -349,6 +386,7 @@ class SearchEditPage:
             try:
                 DB.updateStudent(hash, changes)
             except Exception as e:
+                # TODO: Сделать централизованную обработку ошибок
                 Dialog(self.page, "Ошибка изменения", str(e), 
                     backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
                 return
@@ -398,13 +436,7 @@ class SearchEditPage:
                 alignment=ft.MainAxisAlignment.CENTER,
             )
         else:
-            return ft.Column(
-                [ft.Text("Для просмотра информации необходимо войти в аккаунт", size=20, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER)], 
-                alignment=ft.MainAxisAlignment.CENTER, 
-                height=self.page.window_height-self.page.navigation_bar.height,
-                width=self.page.window_width,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER
-            )
+            return NeedToLogin(self.ui, self.page).build()
         
 class SearchDropdown:
     def __init__(self, ui: UI, index: int, variants: list[str], mode: str):
@@ -431,6 +463,162 @@ class SearchDropdown:
             col={"xs": 2, "sm": 2, "md": 2, "xl": 2},
         )
         return ft.ResponsiveRow(controls=[drop, valueField, delButton], vertical_alignment=ft.CrossAxisAlignment.CENTER)
+
+
+class CreatePage:
+    """
+    Класс для отображения страницы создания студента
+    """
+    def __init__(self, ui: UI):
+        self.ui = ui
+        self.page = ui.page
+        self.title = ft.Text("Создание студента", size=50, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER)
+        self.createButton = ft.ElevatedButton(
+            "Создать",
+            on_click=lambda e: self.create(),
+        )
+        self.cancelButton = ft.ElevatedButton(
+            "Отмена",
+            on_click=lambda e: self.cancel(),
+        )
+        # Сразу создаем дропы для задания хешируемых параметров: Фамилия, Имя, Возраст, Телефон
+        self.createDrops = [
+            CreateDropdown(self.ui, 0, ['Фамилия']).build(),
+            CreateDropdown(self.ui, 1, ['Имя']).build(),
+            CreateDropdown(self.ui, 2, ['Возраст']).build(),
+            CreateDropdown(self.ui, 3, ['Телефон']).build(),
+        ]
+            
+
+    def addDropdown(self):
+        self.createDrops.append(CreateDropdown(self.ui, len(self.createDrops), SearchEditPage.searchCategories).build())
+        self.ui.changePage(2)
+
+    def create(self):
+        # Получаем словарь с данными из дропбоксов
+        student = {}
+        for i in range(len(self.createDrops)):
+            block = self.createDrops[i]
+            dropValue = block.controls[0].value
+            fieldValue = block.controls[1].value
+            if dropValue is None or dropValue == "":
+                continue
+            if dropValue in ['Возраст', 'Номер пропуска', 'Курс']:
+                try:
+                    if dropValue == 'Возраст' and fieldValue == "":
+                        Dialog(self.page, "Ошибка создания", "Не заполнены обязательные поля",
+                            backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+                        return
+                    
+                    fieldValue = int(fieldValue)
+                except ValueError:
+                    Dialog(self.page, "Ошибка создания", f'"{fieldValue}" не является числом', 
+                        backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+                    return
+            student[SearchEditPage.keysUiToStudent[dropValue]] = fieldValue
+        
+        if len(student) == 0:
+            Dialog(self.page, "Ошибка создания", "Нет данных",
+                   backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+            return
+    
+        if 'Фамилия' not in student or 'Имя' not in student or 'Возраст' not in student or 'Телефон' not in student:
+            Dialog(self.page, "Ошибка создания", "Не заполнены обязательные поля",
+                     backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+        
+        try:
+            self.hash = DB.writeStudent(student)
+        except Exception as e:
+            # TODO: Сделать централизованную обработку ошибок
+            Dialog(self.page, "Ошибка записи", str(e), 
+                backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+            return
+
+        Dialog(self.page, "Студент создан", "Студент успешно создан",
+                backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+        
+    def cancel(self):
+        '''
+        Метод для отмены создания студента
+        Удаляет только что созданного студента
+        '''
+        if self.hash is None:
+            Dialog(self.page, "Ошибка отмены", "Нет данных для отмены",
+                   backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+            return
+        try:
+            DB.deleteStudents(self.hash)
+        except Exception as e:
+            # TODO: Сделать централизованную обработку ошибок
+            Dialog(self.page, "Ошибка отмены", str(e), 
+                backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+            return
+        
+        Dialog(self.page, "Отмена создания", "Создание студента отменено",
+                backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+
+        
+    def build(self):
+        if Auth.getUser() is not None:
+            plusDropButton = ft.IconButton(
+                icon=ft.icons.ADD_OUTLINED,
+                on_click=lambda e: self.addDropdown(),
+            )
+            buttons = ft.Row([plusDropButton, self.createButton, self.cancelButton], alignment=ft.MainAxisAlignment.SPACE_EVENLY)
+
+            listView = ft.ListView(
+                controls=[self.createDrops[i] for i in range(len(self.createDrops))],
+                spacing=20,
+                height=min(self.page.window_height-self.page.navigation_bar.height-240, len(self.createDrops)*(55+20)),
+            )
+            card = ft.Column(
+                [ft.Card(
+                    content=ft.Container(
+                        content=ft.Column(
+                            [self.title, listView, buttons],
+                            alignment=ft.MainAxisAlignment.CENTER,
+                            horizontal_alignment=ft.CrossAxisAlignment.STRETCH
+                        ),
+                        padding=20
+                    ),
+                    col={'xs': 12, 'sm': 12, 'md': 7, 'xl': 7}
+                )],
+                alignment=ft.MainAxisAlignment.CENTER,
+                height=self.page.window_height-self.page.navigation_bar.height,
+            )
+            return card
+        else:
+            return NeedToLogin(self.ui, self.page).build()
+        
+class CreateDropdown:
+    def __init__(self, ui: UI, index: int, variants: list[str]):
+        self.page = ui.page
+        self.ui = ui
+        self.variants = variants
+        self.index = index
+    
+
+    def build(self):
+        drop = ft.Dropdown(
+            options=[ft.dropdown.Option(variant) for variant in self.variants],
+            hint_text="Выберите параметр",
+            col={"xs": 5, "sm": 5, "md": 5, "xl": 5},
+            value=self.variants[0] if len(self.variants) == 1 else None,
+            disabled=len(self.variants) == 1
+        )
+        valueField = ft.TextField(
+            label="Значение", multiline=False, hint_text="Введите значение",
+            col={"xs": 5, "sm": 5, "md": 5, "xl": 5}
+        )
+        delButton = ft.IconButton(
+            icon=ft.icons.DELETE_OUTLINED,
+            on_click=lambda e: self.ui.deleteDropdown(drop.value, "Create"),
+            col={"xs": 2, "sm": 2, "md": 2, "xl": 2},
+        )
+        if len(self.variants) > 1:
+            return ft.ResponsiveRow(controls=[drop, valueField, delButton], vertical_alignment=ft.CrossAxisAlignment.CENTER)
+        else:
+            return ft.ResponsiveRow(controls=[drop, valueField], vertical_alignment=ft.CrossAxisAlignment.CENTER)
 
     
 
@@ -480,6 +668,7 @@ class AuthPage:
                 try:
                     email, password = SaverUser.loadUser()
                 except Exception as e:
+                    # TODO: Сделать централизованную обработку ошибок
                     Dialog(self.page, "Ошибка входа", str(e), backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
                     return
                 
@@ -531,7 +720,7 @@ class AuthPage:
             self.currentEmail.value = ""
             self.clickedRegister = False
             # Обновляем страницу
-            self.ui.changePage(2)
+            self.ui.changePage(3)
 
         self.emailField = ft.TextField(label="Email", multiline=False, hint_text="example@example.com")
         self.passwordField = ft.TextField(label="Пароль", password=True, can_reveal_password=True)
@@ -560,10 +749,12 @@ class Dialog:
     """
     Класс для отображения диалоговых окон
     """
-    def __init__(self,page: ft.Page, title: str, content: str, backAction: ft.ElevatedButton, actions: list[ft.ElevatedButton] = []):
+    def __init__(self,page: ft.Page, title: str, content: str, backAction: ft.ElevatedButton = None, actions: list[ft.ElevatedButton] = []):
         self.page = page
         self.title = title
         self.content = content
+        if backAction is None:
+            self.backAction = ft.ElevatedButton("OK", on_click=Dialog.closeDialog)
         self.backAction = backAction
         self.actions = actions
 

@@ -54,7 +54,7 @@ class DB:
         Добавляет студента в базу данных.
 
         Параметры:
-            student (Student): Студент
+            student (Student or dict): Студент
 
         Возвращает:
             str: Хеш-значение студента
@@ -65,6 +65,40 @@ class DB:
             >>> print(hash)
             ed9dc20e31dbc1db
         """
+        if type(student) is dict:
+            # Формируем необходимыйе словари personal_info, contact_info, study_info в словаре student получая пути к полям
+            newStudent = {}
+            for key, value in student.items():
+                path = Student.getPathToField(key)
+                if path.find("/") == -1:
+                    raise ValueError(f"Invalid criteria {key}")
+                path = path.split("/")
+                if len(path) == 0:
+                    raise ValueError(f"Invalid criteria {key}")
+                if path[0] == "personal_info":
+                    if 'personal_info' not in newStudent:
+                        newStudent['personal_info'] = {}
+                    newStudent['personal_info'][path[1]] = value
+                elif path[0] == "contact_info":
+                    if 'contact_info' not in newStudent:
+                        newStudent['contact_info'] = {}
+                    newStudent['contact_info'][path[1]] = value
+                elif path[0] == "study_info":
+                    if 'study_info' not in newStudent:
+                        newStudent['study_info'] = {}
+                    newStudent['study_info'][path[1]] = value
+                else:
+                    raise ValueError(f"Invalid criteria {key}")
+
+            try:
+                hash = DB._getHash(newStudent['personal_info']['surname'], newStudent['personal_info']['name'], 
+                                   newStudent['personal_info']['age'], newStudent['contact_info']['phoneNumber'])
+            except KeyError:
+                raise ValueError("Ошибка в ключах словаря")
+            
+            db.child("students").child(hash).set(newStudent)
+            return hash
+        
         hash = DB.getHashByStudent(student)
         db.child("students").child(hash).set(student.__dict__())
         return hash
