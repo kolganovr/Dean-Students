@@ -1,5 +1,5 @@
 from firebase import auth
-from json import loads
+from errorHandler import ErrorHandler
 
 from cryptography.fernet import Fernet
 from os import remove, path, makedirs
@@ -117,46 +117,7 @@ class Auth:
             if password != confirmed_password:
                 raise Exception("Пароли не совпадают!")
             
-        return email, password
-    
-    def _handleExceptions(e: Exception):
-        """
-        JSON обработка ошибок.
-
-        Параметры:
-            e (Exception): Ошибка при работе с аутентификацией
-        
-        Поднимает:
-            ValueError с описанием ошибок
-            ValueError c кодом ошибки если ошибка неизвестна
-        """
-        def logError(e):
-            # TODO: Сделать логирование ошибок в файл или в cloud storage
-            print(f'Log: {e}')
-            # Записываем в файл
-            with open('data\\error.log', 'a') as file:
-                file.write(str(e) + '\n')
-        
-        try:
-            message = loads(e.args[1])['error']['message']
-        except:
-            if "Failed to establish a new connection" in str(e) or 'Max retries exceeded with url' in str(e):
-                raise ValueError("Нет соединения с интернетом")
-            logError(e)
-            raise ValueError("Неизвестная ошибка!")
-        
-        if message == "INVALID_LOGIN_CREDENTIALS":
-            raise ValueError("Неверные логин или пароль!")
-        elif message == "MISSING_PASSWORD":
-            raise ValueError("Не указан пароль!")
-        elif message == "INVALID_EMAIL":
-            raise ValueError("Неверный email!")
-        elif message == "EMAIL_EXISTS":
-            raise ValueError("Пользователь с таким email уже существует!")
-        else:
-            logError(e)
-            raise ValueError(message)
-    
+        return email, password    
 
     @staticmethod
     def delete_user(email=None, password=None):
@@ -204,7 +165,7 @@ class Auth:
         try:
             user = auth.sign_in_with_email_and_password(email, password)
         except Exception as e:
-            Auth._handleExceptions(e)
+            ErrorHandler.handleException(e)
         
         print("Вы успешно вошли!")
         return user                    
@@ -238,7 +199,7 @@ class Auth:
         try:
             user = auth.create_user_with_email_and_password(email, password)
         except Exception as e:
-            Auth._handleExceptions(e)
+            ErrorHandler.handleException(e)
         
         print("Вы успешно зарегистрировались!")
         return user
@@ -253,7 +214,7 @@ class Auth:
             auth.current_user = None
             return True
         except Exception as e:
-            Auth._handleExceptions(e)
+            ErrorHandler.handleException(e)
 
     
     @staticmethod
