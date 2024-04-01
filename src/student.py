@@ -13,7 +13,7 @@ class Student():
     ID = None
     gradebookID = None
 
-    def __init__(self, personal_info: dict, contact_info: dict, study_info: dict):
+    def __init__(self, personal_info: dict, contact_info: dict, study_info: dict = None):
         try:
             self.surname = personal_info['surname']
             self.name = personal_info['name']
@@ -25,12 +25,13 @@ class Student():
         self.patronymic = personal_info.get('patronymic')
         self.homeCity = personal_info.get('homeCity')
         self.address = contact_info.get('address')
-        self.group = study_info.get('group')
-        self.course = study_info.get('course')
-        self.pass_num = study_info.get('pass_num')
-        self.available_rooms = study_info.get('available_rooms')
-        self.ID = study_info.get('ID')
-        self.gradebookID = study_info.get('gradebookID')
+        if study_info is not None:
+            self.group = study_info.get('group')
+            self.course = study_info.get('course')
+            self.pass_num = study_info.get('pass_num')
+            self.available_rooms = study_info.get('available_rooms')
+            self.ID = study_info.get('ID')
+            self.gradebookID = study_info.get('gradebookID')
 
     def __str__(self):
         return ', '.join([str(value) for _, value in self.__dict__().items() if value is not None])
