@@ -249,6 +249,28 @@ class SearchEditPage:
             Dialog(self.page, "Успешный экспорт", f"Путь скопирован в буфер обмена\nПуть: {exportedFilePath}", 
                 backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
             
+        def deleteFromDB(self):
+            studentsToDelete = []
+            for i in range(len(self.resulutsCards)):
+                if self.resulutsCards[i].isSelected:
+                    for j in range(len(self.results[i])):
+                        studentsToDelete.append(self.results[i][j])
+
+            if len(studentsToDelete) == 0:
+                Dialog(self.page, "Ошибка удаления", "Ничего не выбрано", 
+                   backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+                return
+            
+            try:
+                DB.deleteStudents(*studentsToDelete)
+            except Exception as e:
+                Dialog(self.page, "Ошибка удаления", str(e), 
+                   backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+                return
+
+            Dialog(self.page, "Успешное удаление", "Студенты удалены" if len(studentsToDelete) > 1 else "Студент удален",
+                backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+            
         def build(self):
             self.fillCards()
             # div = ft.VerticalDivider() # TODO: Может быть сделать возможность двигать слайдер
@@ -258,18 +280,23 @@ class SearchEditPage:
             )
             showButton = ft.ElevatedButton(
                 "Показать",
+                disabled=True
             )
             exportButton = ft.ElevatedButton(
                 "Экспорт в CSV",
                 on_click=lambda e: self.exportToCSV(),
             )
+            deleteFromDBButton = ft.ElevatedButton(
+                "Удалить из БД",
+                on_click=lambda e: self.deleteFromDB(),
+            )
             buttonRow = ft.Row(
-                [showButton, exportButton], alignment=ft.MainAxisAlignment.SPACE_EVENLY
+                [showButton, exportButton] if self.mode == "Search" else [deleteFromDBButton], alignment=ft.MainAxisAlignment.SPACE_EVENLY
             )
             card = ft.Card(
                 content=ft.Container(
                     content=ft.Column(
-                        [scrollCol, buttonRow if self.mode == "Search" else ft.Row()],
+                        [scrollCol, buttonRow if self.mode == "Search" else buttonRow],
                     ),
                     padding=20
                 ),
@@ -488,9 +515,12 @@ class CreatePage:
             CreateDropdown(self.ui, 2, ['Возраст']).build(),
             CreateDropdown(self.ui, 3, ['Телефон']).build(),
         ]
+        self.hashStudent = None
             
 
     def addDropdown(self):
+        # TODO: Оставлять только категории, котрые еще не добавлены
+        # FIXME: Будет проблема с последним элементом (нельзя будет удалить из-за логики удаления)
         self.createDrops.append(CreateDropdown(self.ui, len(self.createDrops), SearchEditPage.searchCategories).build())
         self.ui.changePage(2)
 
@@ -527,7 +557,7 @@ class CreatePage:
                      backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
         
         try:
-            self.hash = DB.writeStudent(student)
+            self.hashStudent = DB.writeStudent(student)
         except Exception as e:
             # TODO: Сделать централизованную обработку ошибок
             Dialog(self.page, "Ошибка записи", str(e), 
@@ -542,12 +572,12 @@ class CreatePage:
         Метод для отмены создания студента
         Удаляет только что созданного студента
         '''
-        if self.hash is None:
+        if self.hashStudent is None:
             Dialog(self.page, "Ошибка отмены", "Нет данных для отмены",
                    backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
             return
         try:
-            DB.deleteStudents(self.hash)
+            DB.deleteStudents(self.hashStudent)
         except Exception as e:
             # TODO: Сделать централизованную обработку ошибок
             Dialog(self.page, "Ошибка отмены", str(e), 
@@ -569,7 +599,7 @@ class CreatePage:
             listView = ft.ListView(
                 controls=[self.createDrops[i] for i in range(len(self.createDrops))],
                 spacing=20,
-                height=min(self.page.window_height-self.page.navigation_bar.height-240, len(self.createDrops)*(55+20)),
+                height=min(self.page.window_height-self.page.navigation_bar.height-250, len(self.createDrops)*(55+20)),
             )
             card = ft.Column(
                 [ft.Card(
@@ -584,7 +614,7 @@ class CreatePage:
                     col={'xs': 12, 'sm': 12, 'md': 7, 'xl': 7}
                 )],
                 alignment=ft.MainAxisAlignment.CENTER,
-                height=self.page.window_height-self.page.navigation_bar.height,
+                height=self.page.window_height-self.page.navigation_bar.height-50,
             )
             return card
         else:
