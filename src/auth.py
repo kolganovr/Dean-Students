@@ -133,11 +133,14 @@ class Auth:
         def logError(e):
             # TODO: Сделать логирование ошибок в файл или в cloud storage
             print(f'Log: {e}')
+            # Записываем в файл
+            with open('data\\error.log', 'a') as file:
+                file.write(str(e) + '\n')
         
         try:
             message = loads(e.args[1])['error']['message']
         except:
-            if "Failed to establish a new connection" in str(e):
+            if "Failed to establish a new connection" in str(e) or 'Max retries exceeded with url' in str(e):
                 raise ValueError("Нет соединения с интернетом")
             logError(e)
             raise ValueError("Неизвестная ошибка!")
