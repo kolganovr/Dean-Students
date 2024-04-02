@@ -75,10 +75,10 @@ class ErrorHandler:
         try:
             message = loads(e.args[1])['error']['message']
         except:
-            if "Failed to establish a new connection" in str(e) or 'Max retries exceeded with url' in str(e):
-                ErrorHandler.logError(e)
-                raise ValueError("Нет соединения с интернетом")
             ErrorHandler.logError(e)
+            if "Failed to establish a new connection" in str(e) or 'Max retries exceeded with url' in str(e):
+                raise ValueError("Нет соединения с интернетом")
+                
             raise ValueError("Неизвестная ошибка!")
         
         ErrorHandler.logError(message)
@@ -93,3 +93,10 @@ class ErrorHandler:
         else:
             ErrorHandler.logError(e)
             raise ValueError(message)
+        
+    @staticmethod
+    def getErrorMessage(e):
+        if "Permission denied" in str(e):
+            return "Нет доступа к данным!"
+        else:
+            return "Неизвестная ошибка!"

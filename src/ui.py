@@ -2,6 +2,8 @@ import flet as ft
 from auth import Auth, SaverUser
 from db import DB
 from student import Student
+from errorHandler import ErrorHandler
+
 from datetime import datetime
 from os import path, makedirs
 
@@ -92,12 +94,18 @@ class UI:
         if not find:
             Dialog(self.page, "Ошибка удаления", "Не удалось удалить блок", 
                    backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+        
+    def signOut(self):
+        self.searchPage = SearchEditPage(self, "Search")
+        self.editPage = SearchEditPage(self, "Edit")
+        self.createPage = CreatePage(self)
+        self.changePage(3)
             
 class NeedToLogin:
     """
     Класс для отображения страницы, когда пользователь не авторизован
     """
-    def __init__(self, ui: UI, page: ft.Page, text: str = "Для просмотра информации необходимо войти в аккаунт"):
+    def __init__(self, ui: UI, page: ft.Page, text: str = "Для просмотра информации необходимо войти в соответствующий аккаунт"):
         self.ui = ui
         self.page = page
         self.title = ft.Text(text, size=20, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER)
@@ -409,12 +417,11 @@ class SearchEditPage:
             return
         
         for hash in hashes:
-            print(hash)
             try:
                 DB.updateStudent(hash, changes)
             except Exception as e:
-                # TODO: Сделать централизованную обработку ошибок
-                Dialog(self.page, "Ошибка изменения", str(e), 
+                message = ErrorHandler.getErrorMessage(e)
+                Dialog(self.page, "Ошибка изменения", message, 
                     backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
                 return
 
@@ -431,7 +438,7 @@ class SearchEditPage:
         
 
     def build(self):
-        if Auth.getUser() is not None:
+        if Auth.getUser() is not None and ((self.mode == "Search") or (self.mode == "Edit" and Auth.getUser()['email'] == 'admin@gmail.com')):
             plusDropButton = ft.IconButton(
                 icon=ft.icons.ADD_OUTLINED,
                 on_click=lambda e: self.addDropdown(),
@@ -552,15 +559,18 @@ class CreatePage:
                    backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
             return
     
-        if 'Фамилия' not in student or 'Имя' not in student or 'Возраст' not in student or 'Телефон' not in student:
-            Dialog(self.page, "Ошибка создания", "Не заполнены обязательные поля",
-                     backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+        keys = list(student.keys())
+        for key in keys:
+            if student[key] == "":
+                Dialog(self.page, "Ошибка создания", "Не заполнены обязательные поля",
+                    backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+                return
         
         try:
             self.hashStudent = DB.writeStudent(student)
         except Exception as e:
-            # TODO: Сделать централизованную обработку ошибок
-            Dialog(self.page, "Ошибка записи", str(e), 
+            message = ErrorHandler.getErrorMessage(e)
+            Dialog(self.page, "Ошибка записи", message, 
                 backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
             return
 
@@ -589,7 +599,7 @@ class CreatePage:
 
         
     def build(self):
-        if Auth.getUser() is not None:
+        if Auth.getUser() is not None and Auth.getUser()['email'] == 'admin@gmail.com':
             plusDropButton = ft.IconButton(
                 icon=ft.icons.ADD_OUTLINED,
                 on_click=lambda e: self.addDropdown(),
@@ -749,6 +759,7 @@ class AuthPage:
             self.passwordFieldConfirm.value = ""
             self.currentEmail.value = ""
             self.clickedRegister = False
+            self.ui.signOut()
             # Обновляем страницу
             self.ui.changePage(3)
 
