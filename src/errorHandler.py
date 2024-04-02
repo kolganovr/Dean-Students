@@ -36,6 +36,7 @@ class ErrorHandler:
 
     @staticmethod
     def analyzeLog():
+        # FIXME: Пока не работает из-за того как хранятся записи в Cloud Storage
         storage.child('data/error.log').download('','data/error.log')
 
         errors = {}
@@ -81,7 +82,7 @@ class ErrorHandler:
                 
             raise ValueError("Неизвестная ошибка!")
         
-        ErrorHandler.logError(message)
+        # ErrorHandler.logError(message)
         if message == "INVALID_LOGIN_CREDENTIALS":
             raise ValueError("Неверные логин или пароль!")
         elif message == "MISSING_PASSWORD":
