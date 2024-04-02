@@ -86,8 +86,8 @@ class SaverUser:
         Удаляет файл с данными пользователя.
         """
         try:
-            remove('user_data.key')
-            remove('key.key')
+            remove('data\\user_data.key')
+            remove('data\\key.key')
         except FileNotFoundError:
             pass
 
@@ -167,7 +167,7 @@ class Auth:
         except Exception as e:
             ErrorHandler.handleException(e)
         
-        print("Вы успешно вошли!")
+        print(f"Вы успешно вошли! {user.get('email')}, {user.get('localId')}")
         return user                    
 
 
@@ -190,7 +190,6 @@ class Auth:
             ValueError: Пользователь с таким email уже существует!
 
         """
-        # TODO: Сделать проверку на сложность пароля используя библиотеку passlib или re
         if email is None and password is None and confirmed_password is None:
             email, password = Auth._get_emeil_and_password(True)
         else:
