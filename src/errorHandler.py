@@ -1,4 +1,6 @@
 from json import loads
+from firebase import storage
+import threading
 
 class ErrorHandler:
     """
@@ -6,12 +8,58 @@ class ErrorHandler:
     """
     @staticmethod
     def logError(e):
-        # TODO: Сделать логирование ошибок в файл или в cloud storage
-        print(f'Log: {e}')
+        t = threading.Thread(target=ErrorHandler._logError, args=(e,))
+        t.start()
+
+    @staticmethod
+    def _logError(e):
+        # Скачиваем файл из Cloud Storage
+        storage.child('data/error.log').download('','data/error.log')
+
         # Записываем в файл
-        with open('data\\error.log', 'a') as file:
+        with open('data\\error.log', 'a', encoding='utf-8') as file:
             file.write(str(e) + '\n')
-    
+
+        # Добавляем в файл в Cloud Storage
+        storage.child('data/error.log').put('data/error.log')
+
+        # Очищаем файл
+        with open('data\\error.log', 'w', encoding='utf-8') as file:
+            pass
+
+    @staticmethod
+    def clearLog():
+        with open('data\\error.log', 'w', encoding='utf-8') as file:
+            pass
+
+        storage.child('data/error.log').put('data/error.log')
+
+    @staticmethod
+    def analyzeLog():
+        storage.child('data/error.log').download('','data/error.log')
+
+        errors = {}
+        with open('data\\error.log', 'r', encoding='utf-8') as file:
+            for line in file:
+                line = line.strip()
+                if line in errors:
+                    errors[line] += 1
+                else:
+                    errors[line] = 1
+        
+        # Считаем количество ошибок каждого типа и выводим их в порядке убывания в формате {количество: тип}
+        sortedErrors = sorted(errors.items(), key=lambda x: x[1], reverse=True)
+
+        print("Список ошибок:")
+        for error in sortedErrors:
+            print(f"{error[1]}: {error[0]}")
+
+        print(f"Всего ошибок: {sum(errors.values())}")
+
+        # Очищаем файл
+        with open('data\\error.log', 'w', encoding='utf-8') as file:
+            pass
+
     @staticmethod
     def handleException(e: Exception):
         """
@@ -28,10 +76,12 @@ class ErrorHandler:
             message = loads(e.args[1])['error']['message']
         except:
             if "Failed to establish a new connection" in str(e) or 'Max retries exceeded with url' in str(e):
+                ErrorHandler.logError(e)
                 raise ValueError("Нет соединения с интернетом")
             ErrorHandler.logError(e)
             raise ValueError("Неизвестная ошибка!")
         
+        ErrorHandler.logError(message)
         if message == "INVALID_LOGIN_CREDENTIALS":
             raise ValueError("Неверные логин или пароль!")
         elif message == "MISSING_PASSWORD":
