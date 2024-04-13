@@ -141,9 +141,11 @@ class SearchEditPage:
 
         return keysUiToStudent, keysStudentToUi
     
-    # ['surname', 'name', 'patronymic', 'age', 'homeCity', 'address', 'phoneNumber', 'group', 'course', 'pass_num', 'available_rooms', 'ID', 'gradebookID']
-    searchCategories = ["Фамилия", "Имя", "Отчество", "Возраст", "Город", "Адрес", "Телефон", "Группа", "Курс", "Номер пропуска", "Доступные аудитории", "Номер студенческого", "Номер зачетки"]  
-    keysUiToStudent, keysStudentToUi = getKeysStudentAndUI(searchCategories)      
+    searchCategories = ["Фамилия", "Имя", "Отчество", "Возраст", "Город", "Адрес", "Телефон", "Группа", "Курс", "Номер пропуска", "Доступные аудитории",
+                         "Оценки", "Стипендия", "Форма обучения", "Тип обучения", "Статус", "Номер студенческого", "Номер зачетки"]  
+    keysUiToStudent, keysStudentToUi = getKeysStudentAndUI(searchCategories)
+
+    searchDrops = []    
     class SearchResults:
         """
         Класс для отображения результатов поиска
@@ -308,7 +310,7 @@ class SearchEditPage:
                     ),
                     padding=20
                 ),
-                col={'xs': 12, 'sm': 12, 'md': 7, 'xl': 7}
+                col={'xs': 12, 'sm': 12, 'md': 5, 'xl': 5}
             )
             
             return card
@@ -342,6 +344,22 @@ class SearchEditPage:
         for i in range(len(self.searchDrops)):
             block = self.searchDrops[i]
             dropValue = block.controls[0].value
+            if dropValue in ['Оценки', 'Стипендия', 'Тип обучения']:
+                semester = block.controls[1].value                
+                subjOrOrder = block.controls[2].value
+                value = block.controls[3].value
+                if value is None or value == "":
+                    continue
+                try:
+                    # FIXME: Проблема с оценкой ЗЧ
+                    value = int(value)
+                except ValueError:
+                    Dialog(self.page, "Ошибка поиска", f'"{value}" в поле "{dropValue}" не является числом', 
+                        backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+                    return
+                crireria[self.keysUiToStudent[dropValue]] = {semester: {subjOrOrder: value}}
+                continue
+
             fieldValue = block.controls[1].value
 
             if dropValue is None or dropValue == "" or fieldValue is None or fieldValue == "":
@@ -356,7 +374,7 @@ class SearchEditPage:
                 try:
                     fieldValue = int(fieldValue)
                 except ValueError:
-                    Dialog(self.page, "Ошибка поиска", f'"{fieldValue}" не является числом', 
+                    Dialog(self.page, "Ошибка поиска", f'"{fieldValue}" в поле "{dropValue}" не является числом', 
                         backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
                     return
             crireria[self.keysUiToStudent[dropValue]] = fieldValue
@@ -460,7 +478,7 @@ class SearchEditPage:
                         [self.title, *self.searchDrops, buttons],
                         alignment=ft.MainAxisAlignment.CENTER,
                         horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
-                        col={"xs": 12, "sm": 12, "md": 5, "xl": 5}
+                        col={"xs": 12, "sm": 12, "md": 7, "xl": 7}
                         ),
                         card1
                     ],
@@ -480,23 +498,85 @@ class SearchDropdown:
         self.index = index
         self.mode = mode
 
+    def on_change(self, e):
+        if e.control.value not in ['Оценки', 'Стипендия', 'Тип обучения']:
+            self.ui.searchPage.searchDrops[self.index].controls = [self.drop, self.valueField, self.delButton]
+            self.drop.col = {"xs": 5, "sm": 5, "md": 5, "xl": 5}
+            self.ui.changePage(0 if self.mode == "Search" else 1)
+            return
+        
+        drop = self.ui.searchPage.searchDrops[self.index].controls[0]
+        drop.col = {"xs": 3, "sm": 3, "md": 3, "xl": 3}
+        semDrop = ft.Dropdown(
+            options=[ft.dropdown.Option(f'Семестр {i+1}') for i in range(7)],
+            hint_text="Выберите семестр",
+            col={"xs": 3, "sm": 3, "md": 3, "xl": 3},
+        )
+
+        delButton = ft.IconButton(
+                icon=ft.icons.DELETE_OUTLINED,
+                on_click=lambda e: self.ui.deleteDropdown(drop.value, self.mode),
+                col={"xs": 1, "sm": 1, "md": 1, "xl": 1},
+        )
+        
+        if e.control.value == 'Оценки':
+            subjectField = ft.TextField(
+                label="Предмет", multiline=False, hint_text="Введите предмет",
+                col={"xs": 3, "sm": 3, "md": 3, "xl": 3}
+            )
+            gradeField = ft.TextField(
+                label="Оценка", multiline=False, hint_text="Введите оценку",
+                col={"xs": 2, "sm": 2, "md": 2, "xl": 2}
+            )
+
+
+            self.ui.searchPage.searchDrops[self.index].controls = [drop, semDrop, subjectField, gradeField, delButton]
+        
+        elif e.control.value == 'Стипендия':
+            orderField = ft.TextField(
+                label="Номер приказа", multiline=False, hint_text="Введите номер приказа",
+                col={"xs": 3, "sm": 3, "md": 3, "xl": 3}
+            )
+            amountField = ft.TextField(
+                label="Сумма", multiline=False, hint_text="Введите сумму",
+                col={"xs": 2, "sm": 2, "md": 2, "xl": 2}
+            )
+
+            self.ui.searchPage.searchDrops[self.index].controls = [drop, semDrop, orderField, amountField, delButton]
+        
+        elif e.control.value == 'Тип обучения':
+            orderField = ft.TextField(
+                label="Номер приказа", multiline=False, hint_text="Введите номер приказа",
+                col={"xs": 3, "sm": 3, "md": 3, "xl": 3}
+            )
+            amountField = ft.TextField(
+                label="Сумма", multiline=False, hint_text="Введите сумму",
+                col={"xs": 2, "sm": 2, "md": 2, "xl": 2}
+            )
+
+            self.ui.searchPage.searchDrops[self.index].controls = [drop, semDrop, orderField, amountField, delButton]
+
+        self.ui.changePage(0 if self.mode == "Search" else 1)
+
+
     def build(self):
-        drop = ft.Dropdown(
+        self.drop = ft.Dropdown(
             options=[ft.dropdown.Option(variant) for variant in self.variants],
             hint_text="Выберите параметр",
             col={"xs": 5, "sm": 5, "md": 5, "xl": 5},
+            on_change=lambda e: self.on_change(e),
         )
         # TODO: Сделать неактивным если drop пустой
-        valueField = ft.TextField(
+        self.valueField = ft.TextField(
             label="Значение", multiline=False, hint_text="Введите значение",
             col={"xs": 5, "sm": 5, "md": 5, "xl": 5}
         )
-        delButton = ft.IconButton(
+        self.delButton = ft.IconButton(
             icon=ft.icons.DELETE_OUTLINED,
-            on_click=lambda e: self.ui.deleteDropdown(drop.value, self.mode),
+            on_click=lambda e: self.ui.deleteDropdown(self.drop.value, self.mode),
             col={"xs": 2, "sm": 2, "md": 2, "xl": 2},
         )
-        return ft.ResponsiveRow(controls=[drop, valueField, delButton], vertical_alignment=ft.CrossAxisAlignment.CENTER)
+        return ft.ResponsiveRow(controls=[self.drop, self.valueField, self.delButton], vertical_alignment=ft.CrossAxisAlignment.CENTER)
 
 
 class CreatePage:

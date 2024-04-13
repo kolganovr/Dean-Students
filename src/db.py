@@ -97,10 +97,30 @@ class DB:
                 raise ValueError("Ошибка в ключах словаря")
             
             db.child("students").child(hash).set(newStudent)
+
+            # Если заданы оценки, то добавляем их в базу данных
+            grades = student.get('grades')
+            print(grades)
+            if grades is not None:
+                for semestr in grades.keys():
+                    for subject in grades[semestr].keys():
+                        db.child("grades").child(semestr).child(subject).child(hash).set(grades[semestr][subject])
+
+            grants = student.get('grants')
+            if grants is not None:
+                for semestr in grants.keys():
+                    for grant in grants[semestr].keys():
+                        db.child("grants").child(semestr).child(grant).child(hash).set(grants[semestr][grant])
+                    
+            type_of_education = student.get('type_of_education')
+            if type_of_education is not None:
+                for semestr in type_of_education.keys():
+                    for subject in type_of_education[semestr].keys():
+                        db.child("type_of_education").child(semestr).child(subject).child(hash).set(type_of_education[semestr][subject])
             return hash
         
         hash = DB.getHashByStudent(student)
-        db.child("students").child(hash).set(student.__dict__())
+        db.child("students").child(hash).set(student.__dict__())            
         return hash
 
     @staticmethod
@@ -271,6 +291,36 @@ class DB:
         # Получаем список студентов подходящих под все критерии одновременно
         students = set()
         for key, value in criterias.items():
+            print(key, value)
+            if key in ["grades"]:
+                for key2, value2 in value.items():
+                    for key3, value3 in value2.items():
+                        # Хеши студентов
+                        result = db.child(key).child(key2).child(key3).get()
+                        result = dict(result.val())
+                        for hash, val in result.items():
+                            if val == value3:
+                                students.add(DB.getStudentByHash(hash))
+                continue
+            if key in ["grants", "type_of_education"]:
+                for key2, value2 in value.items():
+                    amounts = db.child(key).child(key2).child('amount').get()
+                    orders = db.child(key).child(key2).child('order').get()
+                    amounts = dict(amounts.val())
+                    orders = dict(orders.val())
+
+                    for hash, val in amounts.items():
+                        print(val, list(value2.values())[0])
+                        if val == list(value2.values())[0]:
+                            students.add(DB.getStudentByHash(hash))
+                    for hash, val in orders.items():
+                        print(val, list(value2.keys())[0])
+                        if val == list(value2.keys())[0]:
+                            students.add(DB.getStudentByHash(hash))
+                print(students)
+                continue
+                    
+
             # получаем путь до нужного критерия
             path = Student.getPathToField(key)
 
@@ -286,6 +336,35 @@ class DB:
         for key, value in criterias.items():
             path = Student.getPathToField(key) # 'personal_info/name'
             for student in students.copy():
+                if key in ["grades"]:
+                    for key2, value2 in value.items():
+                        for key3, value3 in value2.items():
+                            # Хеши студентов
+                            result = db.child(key).child(key2).child(key3).get()
+                            result = dict(result.val())
+                            for hash, val in result.items():
+                                if val != value3:
+                                    students.remove(student)
+                                    break
+                    continue
+
+                if key in ["grants", "type_of_education"]:
+                    for key2, value2 in value.items():
+                        amounts = db.child(key).child(key2).child('amount').get()
+                        orders = db.child(key).child(key2).child('order').get()
+                        amounts = dict(amounts.val())
+                        orders = dict(orders.val())
+
+                        for hash, val in amounts.items():
+                            if val != list(value2.values())[0]:
+                                students.remove(student)
+                                break
+                        for hash, val in orders.items():
+                            if val != list(value2.keys())[0]:
+                                students.remove(student)
+                                break
+                    continue
+
                 current_data_pointer = student.__dict__()
                 for step in path.split("/"):
                     current_data_pointer = current_data_pointer[step]

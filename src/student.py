@@ -10,6 +10,11 @@ class Student():
     course = None
     pass_num = None
     available_rooms = None
+    grades = None
+    grants = None
+    form_of_study = None
+    type_of_education = None
+    status = None
     ID = None
     gradebookID = None
 
@@ -25,11 +30,17 @@ class Student():
         self.patronymic = personal_info.get('patronymic')
         self.homeCity = personal_info.get('homeCity')
         self.address = contact_info.get('address')
+
         if study_info is not None:
             self.group = study_info.get('group')
             self.course = study_info.get('course')
             self.pass_num = study_info.get('pass_num')
             self.available_rooms = study_info.get('available_rooms')
+            self.grades = study_info.get('grades')
+            self.grants = study_info.get('grants')
+            self.form_of_study = study_info.get('form_of_study')
+            self.type_of_education = study_info.get('type_of_education')
+            self.status = study_info.get('status')
             self.ID = study_info.get('ID')
             self.gradebookID = study_info.get('gradebookID')
 
@@ -54,6 +65,11 @@ class Student():
                 "course": self.course,
                 "pass_num": self.pass_num,
                 "available_rooms": self.available_rooms,
+                "grades": self.grades,
+                "grants": self.grants,
+                "form_of_study": self.form_of_study,
+                "type_of_education": self.type_of_education,
+                "status": self.status,
                 "ID": self.ID,
                 "gradebookID": self.gradebookID
             }
