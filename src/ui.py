@@ -144,7 +144,7 @@ class SearchEditPage:
 
         return keysUiToStudent, keysStudentToUi
     
-    searchCategories = ["Фамилия", "Имя", "Отчество", "Возраст", "Город", "Адрес", "Телефон", "Группа", "Курс", "Номер пропуска", "Доступные аудитории",
+    searchCategories = ["Фамилия", "Имя", "Отчество", "Возраст", "Город", "Адрес", "Телефон", "Группа", "Курс", "Номер пропуска",
                          "Оценки", "Стипендия", "Форма обучения", "Тип обучения", "Статус", "Номер студенческого", "Номер зачетки"]  
     keysUiToStudent, keysStudentToUi = getKeysStudentAndUI(searchCategories)
 

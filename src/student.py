@@ -9,7 +9,6 @@ class Student():
     group = None
     course = None
     pass_num = None
-    available_rooms = None
     grades = None
     grants = None
     form_of_study = None
@@ -35,7 +34,6 @@ class Student():
             self.group = study_info.get('group')
             self.course = study_info.get('course')
             self.pass_num = study_info.get('pass_num')
-            self.available_rooms = study_info.get('available_rooms')
             self.grades = study_info.get('grades')
             self.grants = study_info.get('grants')
             self.form_of_study = study_info.get('form_of_study')
@@ -64,7 +62,6 @@ class Student():
                 "group": self.group,
                 "course": self.course,
                 "pass_num": self.pass_num,
-                "available_rooms": self.available_rooms,
                 "grades": self.grades,
                 "grants": self.grants,
                 "form_of_study": self.form_of_study,
