@@ -75,8 +75,9 @@ class ErrorHandler:
         """
         try:
             message = loads(e.args[1])['error']['message']
-        except:
+        except Exception as e:
             ErrorHandler.logError(e)
+            print(e)
             if "Failed to establish a new connection" in str(e) or 'Max retries exceeded with url' in str(e):
                 raise ValueError("Нет соединения с интернетом")
                 
@@ -100,4 +101,6 @@ class ErrorHandler:
         if "Permission denied" in str(e):
             return "Нет доступа к данным!"
         else:
+            ErrorHandler.logError(e)
+            print(e)
             return "Неизвестная ошибка!"

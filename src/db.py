@@ -65,6 +65,7 @@ class DB:
             >>> print(hash)
             ed9dc20e31dbc1db
         """
+        written = False
         if type(student) is dict:
             # Формируем необходимыйе словари personal_info, contact_info, study_info в словаре student получая пути к полям
             newStudent = {}
@@ -95,32 +96,42 @@ class DB:
                                    newStudent['personal_info']['age'], newStudent['contact_info']['phoneNumber'])
             except KeyError:
                 raise ValueError("Ошибка в ключах словаря")
-            
+
+                
+            print(newStudent)
             db.child("students").child(hash).set(newStudent)
-
-            # Если заданы оценки, то добавляем их в базу данных
-            grades = student.get('grades')
-            print(grades)
-            if grades is not None:
-                for semestr in grades.keys():
-                    for subject in grades[semestr].keys():
-                        db.child("grades").child(semestr).child(subject).child(hash).set(grades[semestr][subject])
-
-            grants = student.get('grants')
-            if grants is not None:
-                for semestr in grants.keys():
-                    for grant in grants[semestr].keys():
-                        db.child("grants").child(semestr).child(grant).child(hash).set(grants[semestr][grant])
-                    
-            type_of_education = student.get('type_of_education')
-            if type_of_education is not None:
-                for semestr in type_of_education.keys():
-                    for subject in type_of_education[semestr].keys():
-                        db.child("type_of_education").child(semestr).child(subject).child(hash).set(type_of_education[semestr][subject])
-            return hash
+            written = True
         
-        hash = DB.getHashByStudent(student)
-        db.child("students").child(hash).set(student.__dict__())            
+        if not written:
+            hash = DB.getHashByStudent(student)
+
+        # Если заданы оценки, то добавляем их в базу данных
+        if type(student) is Student:
+            grades = student.grades
+            grants = student.grants
+            type_of_education = student.type_of_education
+        elif type(student) is dict:
+            grades = student.get('grades')
+            grants = student.get('grants')
+            type_of_education = student.get('type_of_education')
+
+        if grades is not None:
+            for semestr in grades.keys():
+                for subject in grades[semestr].keys():
+                    db.child("grades").child(semestr).child(subject).child(hash).set(grades[semestr][subject])
+
+        if grants is not None:
+            for semestr in grants.keys():
+                for grant in grants[semestr].keys():
+                    db.child("grants").child(semestr).child(grant).child(hash).set(grants[semestr][grant])
+                
+        if type_of_education is not None:
+            for semestr in type_of_education.keys():
+                for subject in type_of_education[semestr].keys():
+                    db.child("type_of_education").child(semestr).child(subject).child(hash).set(type_of_education[semestr][subject])
+        
+        if not written:
+            db.child("students").child(hash).set(student.__dict__())            
         return hash
 
     @staticmethod
@@ -171,20 +182,34 @@ class DB:
                 ...
             }
         """
-        for key, value in changes.items():
-            path = Student.getPathToField(key)
-            if path.find("/") == -1:
-                raise ValueError(f"Invalid criteria {key}")
-            path = path.split("/")
-            if len(path) == 0:
-                raise ValueError(f"Invalid criteria {key}")
-                
-            current_data_pointer = current_data
-            for step in path[:-1]:
-                current_data_pointer = current_data_pointer[step]
-            current_data_pointer[path[-1]] = value
+        allInfo = {}
+        for key, val in current_data.items():
+            allInfo.update(val)
+        for key, val in changes.items():
+            field = allInfo.get(key)
+            if field is not None:
+                if type(field) is dict:
+                    for sem, value in field.items():
+                        newVal = changes[key].get(sem)
+                        if newVal is not None:
+                            field[sem].update(changes[key][sem])
+                else:
+                    allInfo[key] = val
 
-        return current_data
+        # Формируем словарь по правилам структуры студента
+        new_data = {}
+        for key, val in allInfo.items():
+            path = Student.getPathToField(key)
+            path = path.split("/")
+            if new_data.get(path[0]) is None:
+                new_data[path[0]] = {path[1]: val}
+            else:
+                new_data[path[0]][path[1]] = val                
+        
+        print(new_data)
+        return new_data
+
+
     
     @staticmethod
     def updateStudent(student, changes: dict):
@@ -219,6 +244,8 @@ class DB:
             raise ValueError(f"Студента больше нет в базе данных")
 
         # Обновляем данные
+        # FIXME: Удаляет те оценки которые не были изменены
+        print(changes)
         newData = DB._updateValues(current_data, changes)
         
         # Генерируем новый хеш
@@ -227,10 +254,38 @@ class DB:
         new_hash = DB._getHash(newData['personal_info']['surname'], newData['personal_info']['name'], 
                                    newData['personal_info']['age'], newData['contact_info']['phoneNumber'])
         
-        DB.deleteStudents(hash)
+        if new_hash != hash:
+            DB.deleteStudents(hash)
             
         # Обновляем данные о студенте
         db.child("students").child(new_hash).update(newData)
+
+        # Обновялем данные в таблицах оценок, стипендий и типа обучения
+        # Оценки
+        if "grades" in changes.keys() or new_hash != hash:
+            for sem, val in newData['study_info']['grades'].items():
+                for subj, mark in val.items():
+                    if new_hash != hash:
+                        db.child("grades").child(sem).child(subj).child(hash).remove()
+                    db.child("grades").child(sem).child(subj).child(new_hash).set(mark)
+            
+        # Стипендии
+        if "grants" in changes.keys() or new_hash != hash:
+            for sem, val in newData['study_info']['grants'].items():
+                if new_hash != hash:
+                    db.child("grants").child(sem).child('amount').child(hash).remove()
+                    db.child("grants").child(sem).child('order').child(hash).remove()
+                db.child("grants").child(sem).child('amount').child(new_hash).set(val['amount'])
+                db.child("grants").child(sem).child('order').child(new_hash).set(val['order'])
+
+        # Тип обучения
+        if "type_of_education" in changes.keys() or new_hash != hash:
+            for sem, val in newData['study_info']['type_of_education'].items():
+                if new_hash != hash:
+                    db.child("type_of_education").child(sem).child('amount').child(hash).remove()
+                    db.child("type_of_education").child(sem).child('order').child(hash).remove()
+                db.child("type_of_education").child(sem).child('amount').child(new_hash).set(val['amount'])
+                db.child("type_of_education").child(sem).child('order').child(new_hash).set(val['order'])
 
         return new_hash
 
@@ -269,8 +324,32 @@ class DB:
         else:
             raise ValueError("Invalid arguments")
         
-        for arg in args:
-            db.child("students").child(arg).remove()
+        for hash in args:
+            # Получаем всю информацию о студенте
+            student = DB.getStudentByHash(hash)
+
+            # Удаляем записи в таблице о студентах
+            db.child("students").child(hash).remove()
+
+            # Удаляем записи в таблице о оценках
+            if student.grades is not None:
+                for semestr in student.grades.keys():
+                    for subject in student.grades[semestr].keys():
+                        db.child("grades").child(semestr).child(subject).child(hash).remove()
+
+            # Удаляем записи в таблице о стипендиях
+            if student.grants is not None:
+                for semestr in student.grants.keys():
+                    for order in student.grants[semestr].keys():
+                        db.child("grants").child(semestr).child('order').child(hash).remove()
+                        db.child("grants").child(semestr).child('amount').child(hash).remove()
+
+            # Удаляем записи в таблице о типе обучения
+            if student.type_of_education is not None:
+                for semestr in student.type_of_education.keys():
+                    for order in student.type_of_education[semestr].keys():
+                        db.child("type_of_education").child(semestr).child('order').child(hash).remove()
+                        db.child("type_of_education").child(semestr).child('amount').child(hash).remove()
 
     @staticmethod
     def findByCriteria(criterias: dict):
@@ -291,7 +370,6 @@ class DB:
         # Получаем список студентов подходящих под все критерии одновременно
         students = set()
         for key, value in criterias.items():
-            print(key, value)
             if key in ["grades"]:
                 for key2, value2 in value.items():
                     for key3, value3 in value2.items():
@@ -310,14 +388,11 @@ class DB:
                     orders = dict(orders.val())
 
                     for hash, val in amounts.items():
-                        print(val, list(value2.values())[0])
                         if val == list(value2.values())[0]:
                             students.add(DB.getStudentByHash(hash))
                     for hash, val in orders.items():
-                        print(val, list(value2.keys())[0])
                         if val == list(value2.keys())[0]:
                             students.add(DB.getStudentByHash(hash))
-                print(students)
                 continue
                     
 

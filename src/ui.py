@@ -12,6 +12,9 @@ class UI:
     Класс для работы со всем UI
     """
     def __init__(self):
+        pass
+
+    def run(self):
         ft.app(target=self.main)
 
     def changePage(self, pageNum: int):
@@ -261,8 +264,10 @@ class SearchEditPage:
             
         def deleteFromDB(self):
             studentsToDelete = []
+            cardsToDeleteIndexes = []
             for i in range(len(self.resulutsCards)):
                 if self.resulutsCards[i].isSelected:
+                    cardsToDeleteIndexes.append(i)
                     for j in range(len(self.results[i])):
                         studentsToDelete.append(self.results[i][j])
 
@@ -277,6 +282,10 @@ class SearchEditPage:
                 Dialog(self.page, "Ошибка удаления", str(e), 
                    backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
                 return
+            
+            # Удаляем все выделенные карточки
+            for i in range(len(cardsToDeleteIndexes) - 1, -1, -1):
+                self.resulutsCards.pop(cardsToDeleteIndexes[i])
 
             Dialog(self.page, "Успешное удаление", "Студенты удалены" if len(studentsToDelete) > 1 else "Студент удален",
                 backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
@@ -340,44 +349,7 @@ class SearchEditPage:
                    backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
             return
     
-        crireria = {}
-        for i in range(len(self.searchDrops)):
-            block = self.searchDrops[i]
-            dropValue = block.controls[0].value
-            if dropValue in ['Оценки', 'Стипендия', 'Тип обучения']:
-                semester = block.controls[1].value                
-                subjOrOrder = block.controls[2].value
-                value = block.controls[3].value
-                if value is None or value == "":
-                    continue
-                try:
-                    # FIXME: Проблема с оценкой ЗЧ
-                    value = int(value)
-                except ValueError:
-                    Dialog(self.page, "Ошибка поиска", f'"{value}" в поле "{dropValue}" не является числом', 
-                        backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
-                    return
-                crireria[self.keysUiToStudent[dropValue]] = {semester: {subjOrOrder: value}}
-                continue
-
-            fieldValue = block.controls[1].value
-
-            if dropValue is None or dropValue == "" or fieldValue is None or fieldValue == "":
-                continue
-
-            # Если уже есть search[dropValue] то показываем Dialog
-            if crireria.get(dropValue) is not None:
-                Dialog(self.page, "Ошибка поиска", f'Для "{dropValue}" уже выбрано значение "{crireria[dropValue]}"', 
-                        backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
-                return
-            if dropValue in ['Возраст', 'Номер пропуска', 'Курс']:
-                try:
-                    fieldValue = int(fieldValue)
-                except ValueError:
-                    Dialog(self.page, "Ошибка поиска", f'"{fieldValue}" в поле "{dropValue}" не является числом', 
-                        backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
-                    return
-            crireria[self.keysUiToStudent[dropValue]] = fieldValue
+        crireria = getDictFromDrops(self.searchDrops, 'Ошибка поиска', self.page)
         
         
         res = DB.findByCriteria(crireria)
@@ -412,22 +384,7 @@ class SearchEditPage:
         hashes = [DB.getHashByStudent(student) for student in selectedStudents]
         
         # Получаем словарь с изменяемыми данными из дропбоксов
-        changes = {}
-
-        for i in range(len(self.searchDrops)):
-            block = self.searchDrops[i]
-            dropValue = block.controls[0].value
-            fieldValue = block.controls[1].value
-            if dropValue is None or dropValue == "":
-                continue
-            if dropValue in ['Возраст', 'Номер пропуска', 'Курс']:
-                try:
-                    fieldValue = int(fieldValue)
-                except ValueError:
-                    Dialog(self.page, "Ошибка изменения", f'"{fieldValue}" не является числом', 
-                        backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
-                    return
-            changes[self.keysUiToStudent[dropValue]] = fieldValue
+        changes = getDictFromDrops(self.searchDrops, 'Ошибка изменения', self.page)
         
         if len(changes) == 0:
             Dialog(self.page, "Ошибка изменения", "Нет изменений",
@@ -500,15 +457,21 @@ class SearchDropdown:
 
     def on_change(self, e):
         if e.control.value not in ['Оценки', 'Стипендия', 'Тип обучения']:
-            self.ui.searchPage.searchDrops[self.index].controls = [self.drop, self.valueField, self.delButton]
+            if self.mode == "Search":
+                self.ui.searchPage.searchDrops[self.index].controls = [self.drop, self.valueField, self.delButton]
+            elif self.mode == "Edit":
+                self.ui.editPage.searchDrops[self.index].controls = [self.drop, self.valueField, self.delButton]
             self.drop.col = {"xs": 5, "sm": 5, "md": 5, "xl": 5}
             self.ui.changePage(0 if self.mode == "Search" else 1)
             return
         
-        drop = self.ui.searchPage.searchDrops[self.index].controls[0]
+        if self.mode == "Search":
+            drop = self.ui.searchPage.searchDrops[self.index].controls[0]
+        elif self.mode == "Edit":
+            drop = self.ui.editPage.searchDrops[self.index].controls[0]
         drop.col = {"xs": 3, "sm": 3, "md": 3, "xl": 3}
         semDrop = ft.Dropdown(
-            options=[ft.dropdown.Option(f'Семестр {i+1}') for i in range(7)],
+            options=[ft.dropdown.Option(f'Семестр {i+1}') for i in range(8)],
             hint_text="Выберите семестр",
             col={"xs": 3, "sm": 3, "md": 3, "xl": 3},
         )
@@ -529,8 +492,10 @@ class SearchDropdown:
                 col={"xs": 2, "sm": 2, "md": 2, "xl": 2}
             )
 
-
-            self.ui.searchPage.searchDrops[self.index].controls = [drop, semDrop, subjectField, gradeField, delButton]
+            if self.mode == "Search":
+                self.ui.searchPage.searchDrops[self.index].controls = [drop, semDrop, subjectField, gradeField, delButton]
+            elif self.mode == "Edit":
+                self.ui.editPage.searchDrops[self.index].controls = [drop, semDrop, subjectField, gradeField, delButton]
         
         elif e.control.value == 'Стипендия':
             orderField = ft.TextField(
@@ -542,7 +507,10 @@ class SearchDropdown:
                 col={"xs": 2, "sm": 2, "md": 2, "xl": 2}
             )
 
-            self.ui.searchPage.searchDrops[self.index].controls = [drop, semDrop, orderField, amountField, delButton]
+            if self.mode == "Search":
+                self.ui.searchPage.searchDrops[self.index].controls = [drop, semDrop, orderField, amountField, delButton]
+            elif self.mode == "Edit":
+                self.ui.editPage.searchDrops[self.index].controls = [drop, semDrop, orderField, amountField, delButton]
         
         elif e.control.value == 'Тип обучения':
             orderField = ft.TextField(
@@ -554,7 +522,10 @@ class SearchDropdown:
                 col={"xs": 2, "sm": 2, "md": 2, "xl": 2}
             )
 
-            self.ui.searchPage.searchDrops[self.index].controls = [drop, semDrop, orderField, amountField, delButton]
+            if self.mode == "Search":
+                self.ui.searchPage.searchDrops[self.index].controls = [drop, semDrop, orderField, amountField, delButton]
+            elif self.mode == "Edit":
+                self.ui.editPage.searchDrops[self.index].controls = [drop, semDrop, orderField, amountField, delButton]
 
         self.ui.changePage(0 if self.mode == "Search" else 1)
 
@@ -613,26 +584,7 @@ class CreatePage:
 
     def create(self):
         # Получаем словарь с данными из дропбоксов
-        student = {}
-        for i in range(len(self.createDrops)):
-            block = self.createDrops[i]
-            dropValue = block.controls[0].value
-            fieldValue = block.controls[1].value
-            if dropValue is None or dropValue == "":
-                continue
-            if dropValue in ['Возраст', 'Номер пропуска', 'Курс']:
-                try:
-                    if dropValue == 'Возраст' and fieldValue == "":
-                        Dialog(self.page, "Ошибка создания", "Не заполнены обязательные поля",
-                            backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
-                        return
-                    
-                    fieldValue = int(fieldValue)
-                except ValueError:
-                    Dialog(self.page, "Ошибка создания", f'"{fieldValue}" не является числом', 
-                        backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
-                    return
-            student[SearchEditPage.keysUiToStudent[dropValue]] = fieldValue
+        student = getDictFromDrops(self.createDrops, "Ошибка создания", self.page)
         
         if len(student) == 0:
             Dialog(self.page, "Ошибка создания", "Нет данных",
@@ -716,29 +668,79 @@ class CreateDropdown:
         self.ui = ui
         self.variants = variants
         self.index = index
+
+    def on_change(self, e):
+        if e.control.value in ['Оценки', 'Стипендия', 'Тип обучения']:
+            drop = self.ui.createPage.createDrops[self.index].controls[0]
+            drop.col = {"xs": 3, "sm": 3, "md": 3, "xl": 3}
+            semDrop = ft.Dropdown(
+                options=[ft.dropdown.Option(f'Семестр {i+1}') for i in range(8)],
+                hint_text="Выберите семестр",
+                col={"xs": 3, "sm": 3, "md": 3, "xl": 3},
+            )
+
+            delButton = ft.IconButton(
+                icon=ft.icons.DELETE_OUTLINED,
+                on_click=lambda e: self.ui.deleteDropdown(self.drop.value, "Create"),
+                col={"xs": 1, "sm": 1, "md": 1, "xl": 1},
+            )
+            
+            if e.control.value == 'Оценки':
+                subjectField = ft.TextField(
+                    label="Предмет", multiline=False, hint_text="Введите предмет",
+                    col={"xs": 3, "sm": 3, "md": 3, "xl": 3}
+                )
+                gradeField = ft.TextField(
+                    label="Оценка", multiline=False, hint_text="Введите оценку",
+                    col={"xs": 2, "sm": 2, "md": 2, "xl": 2}
+                )
+                self.ui.createPage.createDrops[self.index].controls = [drop, semDrop, subjectField, gradeField, delButton]
+            elif e.control.value == 'Стипендия':
+                orderField = ft.TextField(
+                    label="Номер приказа", multiline=False, hint_text="Введите номер приказа",
+                    col={"xs": 3, "sm": 3, "md": 3, "xl": 3}
+                )
+                amountField = ft.TextField(
+                    label="Сумма", multiline=False, hint_text="Введите сумму",
+                    col={"xs": 2, "sm": 2, "md": 2, "xl": 2}
+                )
+                self.ui.createPage.createDrops[self.index].controls = [drop, semDrop, orderField, amountField, delButton]
+            elif e.control.value == 'Тип обучения':
+                orderField = ft.TextField(
+                    label="Номер приказа", multiline=False, hint_text="Введите номер приказа",
+                    col={"xs": 3, "sm": 3, "md": 3, "xl": 3}
+                )
+                amountField = ft.TextField(
+                    label="Сумма", multiline=False, hint_text="Введите сумму",
+                    col={"xs": 2, "sm": 2, "md": 2, "xl": 2}
+                )
+                self.ui.createPage.createDrops[self.index].controls = [drop, semDrop, orderField, amountField, delButton]
+
+            self.ui.changePage(2)
     
 
     def build(self):
-        drop = ft.Dropdown(
+        self.drop = ft.Dropdown(
             options=[ft.dropdown.Option(variant) for variant in self.variants],
             hint_text="Выберите параметр",
             col={"xs": 5, "sm": 5, "md": 5, "xl": 5},
             value=self.variants[0] if len(self.variants) == 1 else None,
-            disabled=len(self.variants) == 1
+            disabled=len(self.variants) == 1,
+            on_change=self.on_change
         )
-        valueField = ft.TextField(
+        self.valueField = ft.TextField(
             label="Значение", multiline=False, hint_text="Введите значение",
             col={"xs": 5, "sm": 5, "md": 5, "xl": 5}
         )
-        delButton = ft.IconButton(
+        self.delButton = ft.IconButton(
             icon=ft.icons.DELETE_OUTLINED,
-            on_click=lambda e: self.ui.deleteDropdown(drop.value, "Create"),
+            on_click=lambda e: self.ui.deleteDropdown(self.drop.value, "Create"),
             col={"xs": 2, "sm": 2, "md": 2, "xl": 2},
         )
         if len(self.variants) > 1:
-            return ft.ResponsiveRow(controls=[drop, valueField, delButton], vertical_alignment=ft.CrossAxisAlignment.CENTER)
+            return ft.ResponsiveRow(controls=[self.drop, self.valueField, self.delButton], vertical_alignment=ft.CrossAxisAlignment.CENTER)
         else:
-            return ft.ResponsiveRow(controls=[drop, valueField], vertical_alignment=ft.CrossAxisAlignment.CENTER)
+            return ft.ResponsiveRow(controls=[self.drop, self.valueField], vertical_alignment=ft.CrossAxisAlignment.CENTER)
 
     
 
@@ -894,3 +896,60 @@ class Dialog:
         self.page.dialog = dialog
         dialog.open = True
         self.page.update()
+
+def getDictFromDrops(drops, errorTitle: str, page : ft.Page):
+    returnDict = {}
+    for i in range(len(drops)):
+        block = drops[i]
+        dropValue = block.controls[0].value
+        if dropValue in ['Оценки', 'Стипендия', 'Тип обучения']:
+            semester = block.controls[1].value
+            subjOrOrder = block.controls[2].value
+            value = block.controls[3].value
+            if value is None or value == "":
+                continue
+            try:
+                value = int(value)
+            except ValueError:
+                Dialog(page, errorTitle, f'"{value}" в поле "{dropValue}" не является числом', 
+                    backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+                return
+            if dropValue == 'Оценки':
+                if not returnDict.get(SearchEditPage.keysUiToStudent[dropValue]):
+                    # Если мы еще не начинали добавлять оценки
+                    returnDict[SearchEditPage.keysUiToStudent[dropValue]] = {semester: {subjOrOrder: value}}
+                else:
+                    # Если мы уже добавляли оценки
+                    if not returnDict[SearchEditPage.keysUiToStudent[dropValue]].get(semester):
+                        # Если в этом семестре еще нет оценок
+                        returnDict[SearchEditPage.keysUiToStudent[dropValue]][semester] = {subjOrOrder: value}
+                    else:
+                        # Если в этом семестре уже есть оценки
+                        returnDict[SearchEditPage.keysUiToStudent[dropValue]][semester][subjOrOrder] = value
+            else:
+                if not returnDict.get(SearchEditPage.keysUiToStudent[dropValue]):
+                    # Если мы еще не начинали добавлять стипендии
+                    returnDict[SearchEditPage.keysUiToStudent[dropValue]] = {semester: {'amount': value, 'order': subjOrOrder}}
+                else:
+                    returnDict[SearchEditPage.keysUiToStudent[dropValue]][semester] = {'amount': value, 'order': subjOrOrder}
+
+            continue
+
+        fieldValue = block.controls[1].value
+        if dropValue is None or dropValue == "":
+            continue
+        if dropValue in ['Возраст', 'Номер пропуска', 'Курс']:
+            try:
+                if dropValue == 'Возраст' and fieldValue == "":
+                    Dialog(page, errorTitle, "Не заполнены обязательные поля",
+                        backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+                    return
+                
+                fieldValue = int(fieldValue)
+            except ValueError:
+                Dialog(page, errorTitle, f'"{fieldValue}" не является числом', 
+                    backAction=ft.ElevatedButton("OK", on_click=Dialog.closeDialog)).build()
+                return
+        returnDict[SearchEditPage.keysUiToStudent[dropValue]] = fieldValue
+
+    return returnDict
