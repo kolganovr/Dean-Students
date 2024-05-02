@@ -447,3 +447,133 @@ class DB:
                     students.remove(student)
 
         return list(students) if len(students) > 0 else None
+    
+    @staticmethod
+    def get_grades_for_all_subjects(formated=False):
+        """
+        Возвращает словарь с оценками всех студентов по всем предметам.
+
+        Параметры:
+            formated (bool): Флаг форматирования результата (Если True - то возвращает словарь в виде: {'Матан': [3, 3, 5, 5], 'Программирование': [5, 5, 5, 5]})
+
+        Возвращает:
+            dict: Словарь с оценками всех студентов по всем предметам
+
+        Пример:
+            >>> grades = DB.get_grades_for_all_subjects()
+            >>> print(grades)
+            {
+                'Семестр 1': {
+                    'Математика': {
+                        'ed9dc20e31dbc1db': 5,
+                        'fe9dc20e31dbc1db': 4,
+                        ...
+                    },
+                    ...
+                },
+                ...
+            }
+        """
+        grades = db.child("grades").get().val()
+        if not formated:
+            return grades
+        
+        # Объединяем оценки за все семестры в один словарь
+        grades_all_semesters = {}
+        for semester, subjects in grades.items():
+            for subject, marks in subjects.items():
+                if subject not in grades_all_semesters:
+                    grades_all_semesters[subject] = {}
+                for student_id, mark in marks.items():
+                    if student_id not in grades_all_semesters[subject]:
+                        grades_all_semesters[subject][student_id] = []
+                    grades_all_semesters[subject][student_id].append(mark)
+
+        grades_all_semesters = {subject: [mark for marks in marks.values() for mark in marks] for subject, marks in grades_all_semesters.items()}
+        return grades_all_semesters
+    
+    @staticmethod
+    def get_type_of_education():
+        """
+        Возвращает словарь с типом обучения всех студентов.
+
+        Возвращает:
+            dict: Словарь с типом обучения всех студентов
+
+        Пример:
+            >>> type_of_education = DB.get_type_of_education()
+            >>> print(type_of_education)
+            {
+                'Семестр 1': [120000, 0, ...]
+                ...
+            }
+        """
+        type_of_education = db.child("type_of_education").get().val()
+
+        formated = {}
+        for key, value in type_of_education.items():
+            formated[key] = []
+            for _, value2 in value['amount'].items():
+                formated[key].append(value2)
+
+        return formated
+    
+    @staticmethod
+    def get_count_of_students_by_type_of_education():
+        """
+        Возвращает словарь с количеством студентов по типу обучения. 
+
+        Возвращает:
+            dict: Словарь с количеством студентов по типу обучения
+
+        Пример:
+            >>> count_of_students_by_type_of_education = DB.get_count_of_students_by_type_of_education()
+            >>> print(count_of_students_by_type_of_education)
+            {
+                'Семестр 1': [350, 750],
+                ...
+            }
+            350 - Кол-во студентов с бюджетным обучением
+            750 - Кол-во студентов с платным обучением
+
+        """
+        type_of_education = db.child("type_of_education").get().val() 
+        
+        formated = {}
+
+        for key, value in type_of_education.items():
+            formated[key] = []
+            for _, value2 in value['amount'].items():
+                formated[key].append(value2)
+
+        # Считыем кол-во студетов у которых бюджетное и платное обучение (стоимость обучения > 0 у платников)
+        for key, value in type_of_education.items():
+            formated[key] = [0, 0]
+            for _, value2 in value['amount'].items():
+                if value2 > 0:
+                    formated[key][1] += 1
+                else:
+                    formated[key][0] += 1
+
+        return formated
+    
+    @staticmethod
+    def get_dynamics_of_scholarships():
+        """
+        Возвращает словарь со стипендиями всех студентов за все семестры.
+
+        Возвращает:
+            dict: Словарь со стипендиями всех студентов за все семестры
+
+        Пример:
+            >>> dynamics_of_scholarships = DB.get_dynamics_of_scholarships()
+            >>> print(dynamics_of_scholarships)
+            {
+                'Семестр 1': [7600, 0, ...]
+                ...
+            }
+        """
+        grants = db.child("grants").get().val()
+
+        return {semester: [grants[semester]['amount'][key] for key in grants[semester]['amount']] for semester in grants}
+    

@@ -6,6 +6,10 @@ from errorHandler import ErrorHandler
 
 from datetime import datetime
 from os import path, makedirs
+import matplotlib.pyplot as plt
+
+ADMIN_EMAIL = 'admin@gmail.com'
+PATH_TO_GRAPHS = 'data/'
 
 class UI:
     """
@@ -32,6 +36,9 @@ class UI:
             self.page.controls = [self.createPage.build()]
             self.page.update()
         elif pageNum == 3:
+            self.page.controls = [self.statsPage.build()]
+            self.page.update()
+        elif pageNum == 4:
             self.page.controls = [self.authPage.build()]
             self.page.update()
 
@@ -42,6 +49,7 @@ class UI:
         self.searchPage = SearchEditPage(self, "Search")
         self.editPage = SearchEditPage(self, "Edit")
         self.createPage = CreatePage(self)
+        self.statsPage = StatsPage(self)
 
         # TODO: Сделать адпированным под масштабы экрана
         # TODO: Сделать обновление высоты и ширины блоков при изменении размера экрана (если возможно)
@@ -60,11 +68,14 @@ class UI:
                     label="Создание", icon=ft.icons.ADD_OUTLINED, selected_icon=ft.icons.ADD
                 ),
                 ft.NavigationDestination(
+                    label="Статистика", icon=ft.icons.AUTO_GRAPH_OUTLINED, selected_icon=ft.icons.AUTO_GRAPH
+                ),
+                ft.NavigationDestination(
                     label="Вход", icon=ft.icons.LOGIN_OUTLINED, selected_icon=ft.icons.LOGIN
                 )
             ],
             on_change=lambda e: self.changePage(e.control.selected_index),
-            selected_index=3,
+            selected_index=4,
             height=80
         )
         page.navigation_bar = self.navBar
@@ -102,7 +113,7 @@ class UI:
         self.searchPage = SearchEditPage(self, "Search")
         self.editPage = SearchEditPage(self, "Edit")
         self.createPage = CreatePage(self)
-        self.changePage(3)
+        self.changePage(4)
             
 class NeedToLogin:
     """
@@ -116,7 +127,7 @@ class NeedToLogin:
     def build(self):
         button = ft.ElevatedButton(
             "На страницу входа",
-            on_click=lambda e: self.ui.changePage(3),
+            on_click=lambda e: self.ui.changePage(4),
         )
         return ft.Column(
             [self.title, button], 
@@ -413,7 +424,7 @@ class SearchEditPage:
         
 
     def build(self):
-        if Auth.getUser() is not None and ((self.mode == "Search") or (self.mode == "Edit" and Auth.getUser()['email'] == 'admin@gmail.com')):
+        if Auth.getUser() is not None and ((self.mode == "Search") or (self.mode == "Edit" and Auth.getUser()['email'] == ADMIN_EMAIL)):
             plusDropButton = ft.IconButton(
                 icon=ft.icons.ADD_OUTLINED,
                 on_click=lambda e: self.addDropdown(),
@@ -465,6 +476,7 @@ class SearchDropdown:
             self.ui.changePage(0 if self.mode == "Search" else 1)
             return
         
+        # FIXME: Ошибка с индексами. проверить их индексацию
         if self.mode == "Search":
             drop = self.ui.searchPage.searchDrops[self.index].controls[0]
         elif self.mode == "Edit":
@@ -631,7 +643,7 @@ class CreatePage:
 
         
     def build(self):
-        if Auth.getUser() is not None and Auth.getUser()['email'] == 'admin@gmail.com':
+        if Auth.getUser() is not None and Auth.getUser()['email'] == ADMIN_EMAIL:
             plusDropButton = ft.IconButton(
                 icon=ft.icons.ADD_OUTLINED,
                 on_click=lambda e: self.addDropdown(),
@@ -742,7 +754,163 @@ class CreateDropdown:
         else:
             return ft.ResponsiveRow(controls=[self.drop, self.valueField], vertical_alignment=ft.CrossAxisAlignment.CENTER)
 
+class StatsPage:
+    """
+    Класс для отображения страницы со статистикой
+    """
+    #FIXME: Не обновляет данные при добавлении новых студентов
+    pageNum = 3
+    modes = ["Распределение баллов по предметам", "Стоимость обучения по семстрам", "Кол-во бюджетных и платных студентов по семестрам", "Динамика стипендий со временем"]
+    filenames = ['grades_for_all_subjects.png', 'cost_for_all_sems.png', 'paid_budjet_for_all_sems.png', 'grants_for_all_sems.png']
+    def __init__(self, ui: UI):
+        self.ui = ui
+        self.page = ui.page
+        self.modeDropdown = ft.Dropdown(
+            options=[ft.dropdown.Option(mode) for mode in self.modes],
+            on_change=lambda e: self.on_change(e),
+            hint_text="Выберите режим"
+        )
+        
+        self.image = ft.Image(
+            src=PATH_TO_GRAPHS + "empty.png",
+            col={"md": 12},
+            height=500
+        )
+        self.imageCard = ft.Card(
+                ft.Container(
+                    ft.Column(
+                        [
+                            ft.ResponsiveRow(
+                                [
+                                    self.image
+                                ] 
+                            )
+                        ],
+                    spacing=15
+                    ),
+                padding=20
+                ),
+                col = {"xs": 12, "sm": 12, "md": 7, "xl": 7}      
+            )
+        
+        self.applyButton = ft.ElevatedButton(
+            "Применить",
+            on_click=lambda e: self.update_stats(),
+            col = {"xs": 3, "sm": 3, "md": 3, "xl": 3},
+            disabled=True
+        )
+        
+    def on_change(self, e):
+        # FIXME: Если данные обновились нужно контрить что кнопка все еще выключена
+        self.applyButton.disabled = False
+        self.ui.changePage(self.pageNum)
+
+    def build(self):
+        if Auth.getUser() is not None and Auth.getUser()['email'] == ADMIN_EMAIL:
+            title = ft.Text("Статистика", weight="bold", size=50, text_align=ft.TextAlign.CENTER)
+            col = ft.Column(
+                controls=[self.modeDropdown, self.applyButton],
+                alignment=ft.MainAxisAlignment.CENTER,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                col = {"xs": 12, "sm": 12, "md": 5, "xl": 5}
+            )
+
+            row = ft.ResponsiveRow(
+                [col, self.imageCard],
+                alignment=ft.MainAxisAlignment.CENTER,
+                vertical_alignment=ft.CrossAxisAlignment.CENTER
+            )
+
+            all = ft.Column(
+                controls=[title, row],
+                alignment=ft.MainAxisAlignment.CENTER,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                height=self.page.window_height-self.page.navigation_bar.height-40
+            )
+
+            return all
+        else:
+            return NeedToLogin(self.ui, self.page).build()
+
+    def update_stats(self):
+        mode = self.modeDropdown.value
+        self.applyButton.disabled = True
+        filename = "empty.png"
+
+        if mode == self.modes[0]:
+            filename = Analytics.plot_grades_for_all_subjects(self.modes[0], self.filenames[0])
+        elif mode == self.modes[1]:
+            filename = Analytics.plot_type_of_education(self.modes[1], self.filenames[1])
+        elif mode == self.modes[2]:
+            filename = Analytics.plot_count_of_students_by_type(self.modes[2], self.filenames[2])
+        elif mode == self.modes[3]:
+            filename = Analytics.plot_dynamics_of_scholarships(self.modes[3], self.filenames[3])
+        
+        self.displayGraph(filename)
+
+    def displayGraph(self, name = "empty.png"):
+        self.image.src = PATH_TO_GRAPHS + name
+        self.ui.changePage(self.pageNum)
+
+class Analytics:
+    """
+    Класс для аналитики данных
+    """
+    @staticmethod
+    def plot_grades_for_all_subjects(title, filename):
+        grades_all_semesters = DB.get_grades_for_all_subjects(formated=True)
+
+        # Строим гистограмму
+        plt.clf()
+        plt.boxplot(grades_all_semesters.values(), labels=grades_all_semesters.keys())
+        plt.title(title)
+        plt.xlabel("Предмет")
+        plt.ylabel("Оценка")
+        plt.grid()
+        plt.savefig(PATH_TO_GRAPHS + filename)
+        return filename
     
+    @staticmethod
+    def plot_type_of_education(title, filename):
+        types = DB.get_type_of_education()
+
+        plt.clf()
+        plt.boxplot(types.values(), labels=types.keys())
+        plt.title(title)
+        plt.grid()
+        plt.savefig(PATH_TO_GRAPHS + filename)
+        return filename
+    
+    @staticmethod
+    def plot_count_of_students_by_type(title, filename):
+        types = DB.get_count_of_students_by_type_of_education()
+
+        plt.clf()
+        colors = ['blue', 'red']  # Цвета для бюджетного и платного обучения соответственно
+
+        for _, (key, value) in enumerate(types.items()):
+            plt.bar(key, value[0], color=colors[0], label="Бюджетное обучение")
+            plt.bar(key, value[1], bottom=value[0], color=colors[1], label="Платное обучение")
+        
+        plt.xlabel("Семестр")
+        plt.ylabel("Количество студентов")
+        plt.title(title)
+        plt.savefig(PATH_TO_GRAPHS + filename)
+        return filename
+    
+    @staticmethod
+    def plot_dynamics_of_scholarships(title, filename):
+        grants = DB.get_dynamics_of_scholarships()
+
+        plt.clf()
+        plt.boxplot(grants.values(), labels=grants.keys())
+        plt.title(title)
+        plt.xlabel("Семестр")
+        plt.ylabel("Сумма стипендии")
+        plt.grid()
+        plt.savefig(PATH_TO_GRAPHS + filename)
+        return filename
+
 
 class AuthPage:
     """
@@ -843,7 +1011,7 @@ class AuthPage:
             self.clickedRegister = False
             self.ui.signOut()
             # Обновляем страницу
-            self.ui.changePage(3)
+            self.ui.changePage(4)
 
         self.emailField = ft.TextField(label="Email", multiline=False, hint_text="example@example.com")
         self.passwordField = ft.TextField(label="Пароль", password=True, can_reveal_password=True)
