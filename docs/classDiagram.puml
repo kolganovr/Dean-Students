@@ -1,0 +1,306 @@
+@startuml ClassDiagram
+
+class "main.py" {
+    -main()
+}
+
+package "UI"{
+    class UI {
+        -page: ft.Page
+        -navBar: ft.NavigationBar
+        -authPage: AuthPage
+        -searchPage: SearchEditPage
+        -editPage: SearchEditPage
+        -createPage: CreatePage
+        -statsPage: StatsPage
+        +run()
+        -changePage(pageNum: int)
+        -main(page: ft.Page)
+        +deleteDropdown(value: str, mode: str)
+        +signOut()
+    }
+
+    class NeedToLogin {
+        -ui: UI
+        -page: ft.Page
+        -title: ft.Text
+        +build()
+    }
+
+    class SearchEditPage {
+        -ui: UI
+        -page: ft.Page
+        -mode: str
+        -title: ft.Text
+        -searchRes: SearchResults
+        -searchDrops: list<SearchDropdown>
+        +addDropdown()
+        +find()
+        +edit()
+        +build()
+    }
+
+    class SearchDropdown {
+        -page: ft.Page
+        -ui: UI
+        -variants: list<str>
+        -index: int
+        -mode: str
+        -drop: ft.Dropdown
+        -valueField: ft.TextField
+        -delButton: ft.IconButton
+        +on_change(e)
+        +build()
+    }
+
+    class SearchResults {
+        -page: ft.Page
+        -mode: str
+        -results: list<list<dict>>
+        -criterias: list<dict>
+        -resulutsCards: list<SearchResultsCard>
+        +fillCards()
+        +exportToCSV()
+        +deleteFromDB()
+        +build()
+    }
+
+    class SearchResultsCard {
+        -res: dict
+        -criteria: dict
+        -isSelected: bool
+        +change(e)
+        +build()
+    }
+
+    class CreatePage {
+        -ui: UI
+        -page: ft.Page
+        -title: ft.Text
+        -createButton: ft.ElevatedButton
+        -cancelButton: ft.ElevatedButton
+        -createDrops: list<CreateDropdown>
+        -hashStudent: dict
+        +addDropdown()
+        +create()
+        +cancel()
+        +build()
+    }
+
+    class CreateDropdown {
+        -page: ft.Page
+        -ui: UI
+        -variants: list<str>
+        -index: int
+        -drop: ft.Dropdown
+        -valueField: ft.TextField
+        -delButton: ft.IconButton
+        +on_change(e)
+        +build()
+    }
+
+    class StatsPage {
+        -ui: UI
+        -page: ft.Page
+        -modeDropdown: ft.Dropdown
+        -image: ft.Image
+        -imageCard: ft.Card
+        -applyButton: ft.ElevatedButton
+        +on_change(e)
+        +build()
+        +update_stats()
+        +displayGraph(name: str)
+    }
+
+    class Analytics {
+        +plot_grades_for_all_subjects(title: str, filename: str): str
+        +plot_type_of_education(title: str, filename: str): str
+        +plot_count_of_students_by_type(title: str, filename: str): str
+        +plot_dynamics_of_scholarships(title: str, filename: str): str
+    }
+
+    class AuthPage {
+        -ui: UI
+        -page: ft.Page
+        -clickedRegister: bool
+        -emailField: ft.TextField
+        -passwordField: ft.TextField
+        -passwordFieldConfirm: ft.TextField
+        -enterButton: ft.ElevatedButton
+        -registerButton: ft.ElevatedButton
+        -recoverButton: ft.ElevatedButton
+        -rememberUser: bool
+        -rememberMeCheckbox: ft.Checkbox
+        -backButton: ft.ElevatedButton
+        -currentEmail: ft.Text
+        -signOutButton: ft.ElevatedButton
+        +build(register: bool)
+    }
+
+    class Dialog {
+        -page: ft.Page
+        -title: str
+        -content: str
+        -backAction: ft.ElevatedButton
+        -actions: list<ft.ElevatedButton>
+        +closeDialog()
+        +build()
+    }
+    UI *-- NeedToLogin
+    UI *-- SearchEditPage
+    UI *-- CreatePage
+    UI *-- StatsPage
+    UI *-- AuthPage
+    SearchEditPage *-- SearchDropdown
+    SearchEditPage *-- SearchResults
+    SearchResults *-- SearchResultsCard
+    CreatePage *-- CreateDropdown
+    StatsPage *-- Analytics
+    AuthPage *-- Dialog
+
+    ' Отношения агрегации
+    SearchEditPage o-- SearchResults
+    CreatePage o-- CreateDropdown
+
+    ' 'Отношения ассоциации
+    SearchResults o-- SearchResultsCard
+
+    ' note "UI - главный класс,\nуправляет всеми остальными классами" as N1
+    ' N1 .. UI
+
+    ' note "NeedToLogin - отображает страницу\nпри отсутствии авторизации" as N2
+    ' N2 .. NeedToLogin
+
+    ' note "SearchEditPage - отображает\nстраницу поиска/редактирования" as N3
+    ' N3 .. SearchEditPage
+
+    ' note "SearchDropdown - дропдаун для выбора\nкритериев поиска/редактирования" as N4
+    ' N4 .. SearchDropdown
+
+    ' note "SearchResults - отображает\nрезультаты поиска" as N5
+    ' N5 .. SearchResults
+
+    ' note "SearchResultsCard - отображает карточку\nс результатами поиска" as N6
+    ' N6 .. SearchResultsCard
+
+    ' note "CreatePage - отображает\nстраницу создания студента" as N7
+    ' N7 .. CreatePage
+
+    ' note "CreateDropdown - дропдаун для ввода\nданных при создании студента" as N8
+    ' N8 .. CreateDropdown
+
+    ' note "StatsPage - отображает\nстраницу статистики" as N9
+    ' N9 .. StatsPage
+
+    ' note "Analytics - класс для работы\nс аналитикой данных" as N10
+    ' N10 .. Analytics
+
+    ' note "AuthPage - отображает страницу\nавторизации и регистрации" as N11
+    ' N11 .. AuthPage
+
+    ' note "Dialog - отображает\nдиалоговые окна" as N12
+    ' N12 .. Dialog
+}
+
+main.py *-- UI
+
+package DB{
+    class DB {
+        - _getHash(*args): str
+        - _updateValues(current_data: dict, changes: dict): dict
+        + getHashByStudent(student: Student): str
+        + writeStudent(student: Student or dict): str
+        + getStudentByHash(hash: str): Student
+        + updateStudent(student: Student or str, changes: dict): str
+        + deleteAllStudents()
+        + deleteStudents(*args: Student or str)
+        + findByCriteria(criterias: dict): list[Student]
+        + get_grades_for_all_subjects(formated: bool = False): dict
+        + get_type_of_education(): dict
+        + get_count_of_students_by_type_of_education(): dict
+        + get_dynamics_of_scholarships(): dict
+    }
+
+    ' note "Класс для работы с базой данных" as N13
+    ' N13 .. DB
+}
+
+package Student{
+    class Student {
+        - surname: str
+        - name: str
+        - patronymic: str
+        - age: int
+        - homeCity: str
+        - address: str
+        - phoneNumber: str
+        - group: str
+        - course: int
+        - pass_num: str
+        - grades: dict
+        - grants: dict
+        - form_of_study: str
+        - type_of_education: str
+        - status: str
+        - ID: str
+        - gradebookID: str
+
+        + __init__(personal_info: dict, contact_info: dict, study_info: dict = None)
+        + __str__(): str
+        + __dict__(): dict
+        + getPathToField(fieldName: str): str
+        + getFieldByPath(path: str): any
+        + getKeys(): list[str]
+        + __eq__(other: Student): bool
+        + __hash__(): int
+    }
+
+    ' note "Класс для хранения информации о студенте" as N14
+    ' N14 .. Student
+}
+
+package Auth{
+    class SaverUser {
+        + saveUser(email: str, password: str)
+        + loadUser(): tuple[str, str]
+        + deleteSavedUser()
+    }
+
+    class Auth {
+        + _get_emeil_and_password(confirmation: bool = False): tuple[str, str]
+        + delete_user(email: str = None, password: str = None): bool
+        + login(email: str = None, password: str = None): dict
+        + register(email: str = None, password: str = None, confirmed_password: str = None): dict
+        + signOut(): bool
+        + isAuth(): bool
+        + getUser(): dict
+    }
+
+    ' note "Класс для авторизации и регистрации" as N15
+    ' N15 .. Auth
+
+    ' note "Класс для сохранения и загрузки пользователя" as N16
+    ' N16 .. SaverUser
+}
+
+package ErrorHandling{
+    class ErrorHandler {
+        + logError(e: Exception)
+        + _logError(e: Exception)
+        + clearLog()
+        + analyzeLog()
+        + handleException(e: Exception)
+        + getErrorMessage(e: Exception)
+    }
+}
+
+' db использует студента
+DB.DB *-- Student.Student
+
+UI.UI *-- Student.Student
+UI.UI *-- DB.DB
+UI.UI *-- Auth
+UI.UI *-- ErrorHandling
+
+Auth.Auth *-- ErrorHandling
+@enduml
