@@ -155,7 +155,7 @@ class SearchEditPage:
 
         return keysUiToStudent, keysStudentToUi
     
-    searchCategories = ["Фамилия", "Имя", "Отчество", "Возраст", "Город", "Адрес", "Телефон", "Группа", "Курс", "Номер пропуска",
+    searchCategories = ["Фамилия", "Имя", "Отчество", "Пол", "Возраст", "Город", "Адрес", "Телефон", "Группа", "Курс", "Номер пропуска",
                          "Оценки", "Стипендия", "Форма обучения", "Тип обучения", "Статус", "Номер студенческого", "Номер зачетки"]  
     keysUiToStudent, keysStudentToUi = getKeysStudentAndUI(searchCategories)
 
@@ -308,10 +308,6 @@ class SearchEditPage:
                 controls=[self.resulutsCards[i].build() for i in range(len(self.resulutsCards))],
                 scroll=ft.ScrollMode.ALWAYS,
             )
-            showButton = ft.ElevatedButton(
-                "Показать",
-                disabled=True
-            )
             exportButton = ft.ElevatedButton(
                 "Экспорт в CSV",
                 on_click=lambda e: self.exportToCSV(),
@@ -321,7 +317,7 @@ class SearchEditPage:
                 on_click=lambda e: self.deleteFromDB(),
             )
             buttonRow = ft.Row(
-                [showButton, exportButton] if self.mode == "Search" else [deleteFromDBButton], alignment=ft.MainAxisAlignment.SPACE_EVENLY
+                [exportButton] if self.mode == "Search" else [deleteFromDBButton], alignment=ft.MainAxisAlignment.SPACE_EVENLY
             )
             card = ft.Card(
                 content=ft.Container(
@@ -790,11 +786,11 @@ class StatsPage:
                     ),
                 padding=20
                 ),
-                col = {"xs": 12, "sm": 12, "md": 7, "xl": 7}      
+                col = {"xs": 12, "sm": 12, "md": 9, "xl": 9}      
             )
         
         self.applyButton = ft.ElevatedButton(
-            "Применить",
+            "Просмотр статистики",
             on_click=lambda e: self.update_stats(),
             col = {"xs": 3, "sm": 3, "md": 3, "xl": 3},
             disabled=True
@@ -812,7 +808,7 @@ class StatsPage:
                 controls=[self.modeDropdown, self.applyButton],
                 alignment=ft.MainAxisAlignment.CENTER,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                col = {"xs": 12, "sm": 12, "md": 5, "xl": 5}
+                col = {"xs": 12, "sm": 12, "md": 3, "xl": 3}
             )
 
             row = ft.ResponsiveRow(
@@ -856,17 +852,23 @@ class Analytics:
     """
     Класс для аналитики данных
     """
+
+    figsize = (20, 10)
     @staticmethod
     def plot_grades_for_all_subjects(title, filename):
         grades_all_semesters = DB.get_grades_for_all_subjects(formated=True)
 
         # Строим гистограмму
         plt.clf()
+        plt.figure(figsize=Analytics.figsize)
+        # configure subplot param of bottom padding
+        plt.subplots_adjust(bottom=0.25)
         plt.boxplot(grades_all_semesters.values(), labels=grades_all_semesters.keys())
         plt.title(title)
         plt.xlabel("Предмет")
         plt.ylabel("Оценка")
         plt.grid()
+        plt.xticks(rotation=90)
         plt.savefig(PATH_TO_GRAPHS + filename)
         return filename
     
@@ -875,9 +877,11 @@ class Analytics:
         types = DB.get_type_of_education()
 
         plt.clf()
+        plt.figure(figsize=Analytics.figsize)
         plt.boxplot(types.values(), labels=types.keys())
         plt.title(title)
         plt.grid()
+        plt.xticks(rotation=90)
         plt.savefig(PATH_TO_GRAPHS + filename)
         return filename
     
@@ -886,6 +890,7 @@ class Analytics:
         types = DB.get_count_of_students_by_type_of_education()
 
         plt.clf()
+        plt.figure(figsize=Analytics.figsize)
         colors = ['blue', 'red']  # Цвета для бюджетного и платного обучения соответственно
 
         for _, (key, value) in enumerate(types.items()):
@@ -895,6 +900,7 @@ class Analytics:
         plt.xlabel("Семестр")
         plt.ylabel("Количество студентов")
         plt.title(title)
+        plt.xticks(rotation=90)
         plt.savefig(PATH_TO_GRAPHS + filename)
         return filename
     
@@ -903,11 +909,13 @@ class Analytics:
         grants = DB.get_dynamics_of_scholarships()
 
         plt.clf()
+        plt.figure(figsize=Analytics.figsize)
         plt.boxplot(grants.values(), labels=grants.keys())
         plt.title(title)
         plt.xlabel("Семестр")
         plt.ylabel("Сумма стипендии")
         plt.grid()
+        plt.xticks(rotation=90)
         plt.savefig(PATH_TO_GRAPHS + filename)
         return filename
 

@@ -2,6 +2,7 @@ class Student():
     surname = None
     name = None
     patronymic = None
+    gender = None
     age = None
     homeCity = None
     address = None
@@ -27,6 +28,7 @@ class Student():
             raise ValueError("Not enough information")
         
         self.patronymic = personal_info.get('patronymic')
+        self.gender = personal_info.get('gender')
         self.homeCity = personal_info.get('homeCity')
         self.address = contact_info.get('address')
 
@@ -51,6 +53,7 @@ class Student():
                 "surname": self.surname,
                 "name": self.name,
                 "patronymic": self.patronymic,
+                "gender": self.gender,
                 "age": self.age,
                 "homeCity": self.homeCity,
             },
