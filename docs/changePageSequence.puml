@@ -1,0 +1,29 @@
+@startuml Sequnce Diagram of Page Change
+participant UI as "UI"
+participant SearchEditPage as "SearchEditPage"
+participant CreatePage as "CreatePage"
+participant StatsPage as "StatsPage"
+participant AuthPage as "AuthPage"
+
+UI ->> UI: changePage(4)
+alt pageNum == 0
+    UI ->> SearchEditPage: build('Search')
+    UI ->> UI: update()
+end
+alt pageNum == 1
+    UI ->> SearchEditPage: build('Edit')
+    UI ->> UI: update()
+end
+alt pageNum == 2
+    UI ->> CreatePage: build()
+    UI ->> UI: update()
+end
+alt pageNum == 3
+    UI ->> StatsPage: build()
+    UI ->> UI: update()
+end
+alt pageNum == 4
+    UI ->> AuthPage: build()
+    UI ->> UI: update()
+end
+@enduml

@@ -1,0 +1,24 @@
+@startuml Create Student Diagram
+participant CreatePage as C
+participant Dialog as D
+participant DB as DB
+participant Firebase as F
+
+C -> C: getDictFromDrops()
+
+alt "Error with input data"
+    C -> D: Ошибка создания, {error message}
+    return
+end
+
+C -> DB: writeStudent()
+DB -> DB: _getHash()
+DB -> F: Запись всех полей во все таблицы
+alt "Error with DB"
+    C -> D: Ошибка записи, {error message}
+    return
+end
+
+C -> D: Студент успешно создан
+
+@enduml

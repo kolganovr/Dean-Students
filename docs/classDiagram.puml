@@ -230,6 +230,7 @@ package Student{
         - surname: str
         - name: str
         - patronymic: str
+        - gender: str
         - age: int
         - homeCity: str
         - address: str

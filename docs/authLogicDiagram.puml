@@ -1,0 +1,40 @@
+@startuml AuthLogicDiagram
+participant User as U
+participant Auth as A
+participant SaverUser as SU
+participant Firebase as F
+
+alt "Login"
+    alt "Button 'Sign In'"
+        U->A: login(email, password)
+    else alt "Enter by saved data"
+        U->SU: loadUser()
+        SU->A: email, password
+    end
+
+    A->F: sign_in_with_email_and_password(email, password)
+    F->A: user data (idToken, email, etc.)
+    A->U: user data
+    alt "Remember User"
+        A->SU: saveUser(email, password)    
+    end
+end
+
+alt "Sign Out"
+    U->A: signOut()
+    A->SU: clear saved user
+    A->F: sign out
+end
+alt "Is Auth"
+    U->A: isAuth()
+    A->F: check current user
+    F->A: true/false
+    A->U: true/false
+end
+alt "Get User"
+    U->A: getUser()
+    A->F: get current user
+    F->A: user data
+    A->U: user data
+end
+@enduml

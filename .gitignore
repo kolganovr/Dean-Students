@@ -155,3 +155,4 @@ cfg.py
 *.csv
 data
 *.key
+*.ini
